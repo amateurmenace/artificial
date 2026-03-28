@@ -236,10 +236,10 @@ const MiniPreview = ({ type, color }) => {
   const previews = {
     spotTheFake: (
       <div className="flex items-center gap-1 mt-2">
-        <div className={`w-8 h-6 rounded bg-slate-600 flex items-center justify-center text-[8px] ${frame === 1 ? 'ring-1 ring-teal-400' : ''}`}>🌅</div>
+        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60&h=40&fit=crop&crop=face" alt="" className={`w-8 h-6 rounded object-cover ${frame === 1 ? 'ring-1 ring-teal-400' : ''}`} />
         <div className="text-[8px] text-slate-500">vs</div>
-        <div className={`w-8 h-6 rounded bg-slate-600 flex items-center justify-center text-[8px] ${frame === 2 ? 'ring-1 ring-red-400' : ''}`}>🌅</div>
-        <span className="text-[8px] ml-1" style={{ color }}>{['🔍', '⚠️ AI?', '✓ Real', '🐺'][frame]}</span>
+        <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=60&h=40&fit=crop&crop=face" alt="" className={`w-8 h-6 rounded object-cover ${frame === 2 ? 'ring-1 ring-red-400' : ''}`} />
+        <span className="text-[7px] ml-1 font-bold" style={{ color }}>{['scan', 'AI?', 'real', 'vote'][frame]}</span>
       </div>
     ),
     memeMachine: (
@@ -329,31 +329,13 @@ const DetailPreview = ({ type, color }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Reusable styled photo placeholder (gradient landscapes instead of emojis)
-  const PhotoPlaceholder = ({ variant, label, isHighlighted, scanProgress }) => {
-    const gradients = {
-      sunset: 'linear-gradient(135deg, #fb923c, #f43f5e, #9333ea)',
-      mountain: 'linear-gradient(135deg, #93c5fd, #94a3b8, #047857)',
-      portrait: 'linear-gradient(135deg, #fde68a, #fdba74, #fb7185)',
-      nature: 'linear-gradient(135deg, #f9a8d4, #fb7185, #d946ef)',
-    };
-    return (
-      <div className={`relative rounded-lg overflow-hidden border-2 transition-all ${isHighlighted ? 'border-teal-400 shadow-lg shadow-teal-500/20' : 'border-slate-600'}`}>
-        <div className="w-full h-16" style={{ background: gradients[variant] || gradients.sunset }} />
-        {scanProgress !== undefined && (
-          <div className="absolute left-0 right-0 h-0.5 bg-teal-400/80" style={{ top: `${scanProgress}%` }} />
-        )}
-        {label && <p className="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] text-white text-center py-0.5">{label}</p>}
-      </div>
-    );
-  };
-
   if (type === 'spotTheFake') {
+    // Use real Unsplash photos from the game's image database
     const items = [
-      { variant: 'sunset', label: 'Sunset Beach', isAI: false },
-      { variant: 'mountain', label: 'Mountain Vista', isAI: true },
-      { variant: 'portrait', label: 'Fox Portrait', isAI: true },
-      { variant: 'nature', label: 'Cherry Blossoms', isAI: false },
+      { url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face', label: 'Portrait A', isAI: false },
+      { url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&crop=face', label: 'Portrait B', isAI: true },
+      { url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200&h=200&fit=crop', label: 'Cat Photo', isAI: false },
+      { url: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=200&h=200&fit=crop', label: 'Cat Photo 2', isAI: true },
     ];
     const idx = frame % 4;
     const item = items[idx];
@@ -362,7 +344,13 @@ const DetailPreview = ({ type, color }) => {
       <div className="bg-slate-900/80 rounded-xl p-4 border border-slate-700">
         <div className="flex items-center gap-4 mb-3">
           <div className="flex-1">
-            <PhotoPlaceholder variant={item.variant} label={item.label} isHighlighted={frame >= 3} scanProgress={scanProg} />
+            <div className={`relative rounded-lg overflow-hidden border-2 transition-all ${frame >= 3 ? 'border-teal-400 shadow-lg shadow-teal-500/20' : 'border-slate-600'}`}>
+              <img src={item.url} alt={item.label} className="w-full h-20 object-cover" loading="lazy" />
+              {scanProg !== undefined && (
+                <div className="absolute left-0 right-0 h-0.5 bg-teal-400/80 shadow-lg shadow-teal-400/50" style={{ top: `${scanProg}%` }} />
+              )}
+              <p className="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] text-white text-center py-0.5">{item.label}</p>
+            </div>
           </div>
           <div className="text-center w-24">
             {frame < 3 ? (
