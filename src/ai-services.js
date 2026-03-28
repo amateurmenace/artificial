@@ -70,6 +70,30 @@ export const AI_PROVIDERS = {
     keyLink: 'https://ollama.ai',
     supportsChat: true,
     supportsImage: false
+  },
+  stability: {
+    name: 'Stability AI',
+    chatModel: null,
+    imageModel: 'sd3.5-large',
+    apiUrl: 'https://api.stability.ai/v2beta',
+    description: 'Stable Diffusion 3.5 (High quality images)',
+    requiresKey: true,
+    keyPlaceholder: 'sk-...',
+    keyLink: 'https://platform.stability.ai/account/keys',
+    supportsChat: false,
+    supportsImage: true
+  },
+  together: {
+    name: 'Together AI',
+    chatModel: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+    imageModel: 'black-forest-labs/FLUX.1-schnell',
+    apiUrl: 'https://api.together.xyz/v1',
+    description: 'FLUX.1 Schnell (Fast, high quality)',
+    requiresKey: true,
+    keyPlaceholder: '',
+    keyLink: 'https://api.together.xyz/settings/api-keys',
+    supportsChat: true,
+    supportsImage: true
   }
 };
 
@@ -565,29 +589,91 @@ export const chatCompletion = async (messages, options = {}) => {
   }
 };
 
+// Stability AI image generation
+const stabilityImage = async (prompt, size = '1024x1024') => {
+  const key = getApiKey('stability');
+  if (!key) throw new Error('Stability AI API key not configured');
+
+  const [width, height] = size.split('x').map(Number);
+  const response = await fetch('https://api.stability.ai/v2beta/stable-image/generate/sd3', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${key}`,
+      'Accept': 'application/json',
+    },
+    body: (() => {
+      const formData = new FormData();
+      formData.append('prompt', prompt);
+      formData.append('output_format', 'png');
+      formData.append('model', 'sd3.5-large');
+      formData.append('aspect_ratio', width === height ? '1:1' : '16:9');
+      return formData;
+    })(),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || `Stability API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return { url: `data:image/png;base64,${data.image}` };
+};
+
+// Together AI (FLUX) image generation
+const togetherImage = async (prompt, size = '1024x1024') => {
+  const key = getApiKey('together');
+  if (!key) throw new Error('Together AI API key not configured');
+
+  const [width, height] = size.split('x').map(Number);
+  const response = await fetch('https://api.together.xyz/v1/images/generations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model: 'black-forest-labs/FLUX.1-schnell',
+      prompt,
+      width: Math.min(width, 1024),
+      height: Math.min(height, 1024),
+      n: 1,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error?.message || `Together API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return { url: data.data?.[0]?.url || data.data?.[0]?.b64_json };
+};
+
 export const generateImage = async (prompt, size = '1024x1024', preferredProvider) => {
   // Use preferred provider or find one that supports images
   let provider = preferredProvider || getProvider();
   let config = AI_PROVIDERS[provider];
-  
+
   // If current provider doesn't support images, find one that does
   if (!config?.supportsImage) {
-    if (hasApiKey('openai')) {
-      provider = 'openai';
-      config = AI_PROVIDERS.openai;
-    } else if (hasApiKey('gemini')) {
-      provider = 'gemini';
-      config = AI_PROVIDERS.gemini;
+    const imageProviders = ['openai', 'gemini', 'together', 'stability'];
+    const found = imageProviders.find(p => hasApiKey(p) && AI_PROVIDERS[p]?.supportsImage);
+    if (found) {
+      provider = found;
+      config = AI_PROVIDERS[found];
     } else {
-      throw new Error('No image-capable AI provider configured. Please set up OpenAI or Gemini API key.');
+      throw new Error('No image-capable AI provider configured. Please set up an API key for OpenAI, Gemini, Stability AI, or Together AI.');
     }
   }
-  
+
   switch (provider) {
     case 'openai': return openaiImage(prompt, size);
     case 'gemini':
     case 'gemini_pro': return geminiImage(prompt, size);
-    default: throw new Error(`Image generation not supported for ${provider}. Use OpenAI or Gemini.`);
+    case 'stability': return stabilityImage(prompt, size);
+    case 'together': return togetherImage(prompt, size);
+    default: throw new Error(`Image generation not supported for ${provider}.`);
   }
 };
 

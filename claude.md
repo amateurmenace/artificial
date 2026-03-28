@@ -144,7 +144,7 @@ Current models in `ai-services.js` (updated to latest):
 | Claude | claude-sonnet-4-5-20250929 | - |
 | Groq | llama-3.3-70b-versatile | - |
 
-**Default API Key**: A facilitator-provided Gemini API key is hardcoded as fallback in `ai-services.js`, so users don't need to configure their own key. Users can still override with their own key via the settings modal.
+**Default API Key**: A facilitator-provided Gemini API key is loaded from `.env` (`REACT_APP_DEFAULT_GEMINI_KEY`) as fallback, so users don't need to configure their own key. Users can still override with their own key via the settings modal. **Never hardcode API keys in source files** — use `.env` (gitignored) for all secrets.
 
 ---
 
@@ -176,12 +176,17 @@ games/
 
 ## Recent Changes (v12)
 
-1. **AI Model Comparison Game** - New bonus mini-game: same prompt sent to multiple AI models (GPT, Gemini, Claude, etc.), blind voting, dramatic reveal of which model made which output
+1. **AI Model Comparison Game** - Same prompt sent to multiple AI models, blind voting, dramatic reveal. Includes **Image Generation** comparison (DALL-E vs Nano Banana vs Stable Diffusion vs FLUX). Parallel generation racing with 🥇🥈🥉 speed medals and timing. Per-provider model selection and temperature controls. Provider add/remove with smart filtering
 2. **Prompt History/Replay Timeline** - Slide-out sidebar in Meme Machine and Vibe Code showing all prompts sent during the session with insights and filters
 3. **Remix Mode** - New bonus mini-game: fork another player's app/meme, iterate on it, vote on best remixes
 4. **Real-World Deployment** - Step-by-step GitHub Pages deployment wizard in Vibe Code — players leave with a live URL
-5. **Enhanced Homepage Showcase** - Replaced brief game cards with full scrolling showcase sections for all 6 games (3 core + 2 bonus + tournament), each with "What Makes It Fun", "What You'll Learn", real examples, and CTA buttons
+5. **Enhanced Homepage** - Compact game grid with animated previews, gradient photo placeholders (no emojis), SVG pixel-art icons. Side-by-side "How to Play" + "What You'll Learn". About cards always visible. "Ready in 60 Seconds" with SVG icons (no emojis). FAQ collapsed. Single footer. Dashboard activity feed shows player joins, votes, reactions, submissions with timestamps
 6. **multiProviderCompletion** - New AI service function for running the same prompt against multiple providers in parallel
+7. **API Key Security** - All API keys moved from hardcoded source to `.env` environment variables. Old keys scrubbed from git history with `git-filter-repo`. `.env.example` provided for documentation
+8. **Persistent Dashboard Button** - All three games now show a fixed "📊 Dashboard" button for the host on every phase (was previously only in lobby)
+9. **Meme Machine UX** - Enhance button shows loading spinner while BYTE is working. "Skip enhancement" option to go straight to image generation. Fixed Firebase `arrayUnion` nested entity error on meme submission (removed `comments: []`, flattened `aiFeedback`)
+10. **Navigation** - Logo is clickable (returns home) across all views. Info pages have fixed top nav bar. Consistent exit + dashboard buttons across all games
+11. **Top Navigation** - Fixed ARTIFICIAL nav bar added to Info pages with Logo link home
 
 ## Previous Changes (v11)
 
@@ -241,11 +246,16 @@ Requires:
 
 ## API Key Setup
 
-A default Gemini API key is provided so users can play without configuration. Users can optionally enter their own keys via the settings modal. Keys are stored in localStorage:
+**IMPORTANT**: API keys are stored in `.env` (gitignored, never committed). See `.env.example` for the template.
+
+Environment variables (loaded at build time by Create React App):
+- `REACT_APP_DEFAULT_GEMINI_KEY` - Facilitator fallback key
+- `REACT_APP_FIREBASE_API_KEY` - Firebase config
+- `REACT_APP_FIREBASE_*` - Other Firebase config values
+
+User-configured keys are stored in localStorage:
 - `ai_provider`: 'openai' | 'gemini' | 'claude'
-- `ai_key_openai`
-- `ai_key_gemini`
-- `ai_key_anthropic`
+- `ai_key_openai`, `ai_key_gemini`, `ai_key_anthropic`
 
 ---
 

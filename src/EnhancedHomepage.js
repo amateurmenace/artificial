@@ -2,7 +2,7 @@
 // Lighter theme, modern design, swapped sections, API key info
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Button } from './components';
+import { Button, Logo } from './components';
 import GameShowcase from './GameShowcase';
 
 // ============================================
@@ -276,22 +276,33 @@ const INFO_PAGES = {
 
 export const InfoPage = ({ pageId, onClose }) => {
   const page = INFO_PAGES[pageId];
-  
+
   if (!page) return null;
-  
+
   return (
     <div className="min-h-screen bg-[#f5f3ef]">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-[#3d5a4c] to-[#48a89a] text-white py-8 px-4">
+      {/* Fixed top nav */}
+      <header className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-b border-[#e2e0dc] px-4 py-3 z-50">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <Logo onClick={onClose} />
+          <div className="flex items-center gap-4">
+            <button onClick={onClose} className="text-sm text-[#6b7c74] hover:text-[#3d5a4c] hidden md:block">Games</button>
+            <a href="#about" onClick={onClose} className="text-sm text-[#6b7c74] hover:text-[#3d5a4c] hidden md:block">About</a>
+          </div>
+        </div>
+      </header>
+
+      {/* Page header */}
+      <header className="bg-gradient-to-r from-[#3d5a4c] to-[#48a89a] text-white py-8 px-4 mt-14">
         <div className="max-w-4xl mx-auto">
-          <button 
+          <button
             onClick={onClose}
             className="flex items-center gap-2 text-white/80 hover:text-white mb-4 transition-colors"
           >
             ← Back to Home
           </button>
           <div className="flex items-center gap-4">
-            <div 
+            <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
               style={{ backgroundColor: page.color + '30' }}
             >
@@ -806,344 +817,154 @@ const EnhancedHomepage = ({ onHost, onJoin, onSelectGame, onShowInfoPage, onOpen
         </div>
       </section>
       
-      {/* Game Showcase - Detailed sections for all games */}
+      {/* Game Showcase - Compact grid with tabbed details */}
       <div id="games-section" ref={gamesRef}>
-        <GameShowcase
-          onSelectGame={onSelectGame}
-          SpotTheFakePreview={SpotTheFakePreview}
-          MemeMachinePreview={MemeMachinePreview}
-          VibeCodePreview={VibeCodePreview}
-        />
+        <GameShowcase onSelectGame={onSelectGame} />
       </div>
       
-      {/* SWAPPED: How It Works Section - NOW SECOND - Modern Design without emojis */}
-      <section className="py-20 px-4 bg-white" id="how-it-works">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-black text-slate-800 mb-4">
-              How It Works
+      {/* How It Works - Simplified 3 steps */}
+      <section className="py-16 px-4 bg-white" id="how-it-works">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-black text-slate-800 mb-3">
+              Ready in 60 Seconds
             </h2>
-            <p className="text-slate-600">Get started in minutes with these simple steps</p>
           </div>
-          
-          <div className="grid md:grid-cols-4 gap-8">
+
+          <div className="flex flex-col md:flex-row items-center gap-4 md:gap-0">
             {[
-              { 
-                step: '01', 
-                title: 'Gather Players', 
-                desc: 'Get 2-20 friends, students, or colleagues together in person or online',
-                icon: (
-                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                )
-              },
-              { 
-                step: '02', 
-                title: 'Set Up API Keys', 
-                desc: 'Add your OpenAI or Gemini API key to enable AI features (takes 2 min)',
-                icon: (
-                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                  </svg>
-                )
-              },
-              { 
-                step: '03', 
-                title: 'Share Code', 
-                desc: 'Everyone joins with a simple 6-character code on their device',
-                icon: (
-                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                  </svg>
-                )
-              },
-              { 
-                step: '04', 
-                title: 'Play & Learn', 
-                desc: 'Build AI literacy skills while competing and having fun together',
-                icon: (
-                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                )
-              },
+              { step: '1', title: 'Gather Players', desc: 'Get 2-20 friends, students, or colleagues together',
+                icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="#3d5a4c" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /></svg> },
+              { step: '2', title: 'Share the Code', desc: 'Host a game and share the 6-character code',
+                icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="#3d5a4c" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" /></svg> },
+              { step: '3', title: 'Play & Learn', desc: 'Build AI skills while competing and having fun!',
+                icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="#3d5a4c" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" /></svg> },
             ].map((item, i) => (
-              <div key={i} className="text-center group">
-                <div className="relative inline-block mb-6">
-                  {/* Modern card with gradient border */}
-                  <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center text-slate-600 group-hover:from-teal-100 group-hover:to-teal-200 group-hover:text-teal-600 transition-all duration-300 shadow-lg">
-                    {item.icon}
+              <React.Fragment key={i}>
+                <div className="flex-1 text-center group">
+                  <div className="flex justify-center mb-3">
+                    <div className="w-16 h-16 bg-[#48a89a]/10 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:bg-[#48a89a]/20 transition-all duration-300">
+                      {item.icon}
+                    </div>
                   </div>
-                  {/* Step number badge */}
-                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-teal-500 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md">
-                    {item.step}
-                  </div>
+                  <h3 className="font-bold text-slate-800 text-lg mb-1">{item.title}</h3>
+                  <p className="text-slate-500 text-sm">{item.desc}</p>
                 </div>
-                <h3 className="font-bold text-slate-800 mb-2 text-lg">{item.title}</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">{item.desc}</p>
+                {i < 2 && (
+                  <div className="hidden md:flex items-center px-4">
+                    <svg className="w-6 h-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                  </div>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section className="py-14 px-4 bg-slate-50" id="about">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-black text-slate-800 mb-6 text-center">About ARTIFICIAL</h2>
+          <div className="grid md:grid-cols-2 gap-4">
+            {[
+              { emoji: '💡', title: 'Why AI Literacy?', desc: 'AI is everywhere. Understanding how it works helps you make better decisions about what to trust and how to use these powerful tools responsibly.' },
+              { emoji: '🎯', title: 'Who Is This For?', desc: 'Community groups, educators, libraries, civic organizations, and anyone curious about AI. No technical background required.' },
+              { emoji: '🛠️', title: 'How It\'s Built', desc: 'React + Firebase for real-time multiplayer. Connects to OpenAI, Anthropic, and Google Gemini. Fully open source.' },
+              { emoji: '🆓', title: 'Free & Open', desc: 'ARTIFICIAL is free for educational use under CC BY-SA 4.0. Host unlimited games with your group.' },
+            ].map((card, i) => (
+              <div key={i} className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+                  <span className="text-xl">{card.emoji}</span> {card.title}
+                </h3>
+                <p className="text-slate-600 text-sm leading-relaxed">{card.desc}</p>
               </div>
             ))}
           </div>
-          
-          {/* API Key Info Box */}
-          <div className="mt-16 bg-gradient-to-r from-slate-100 to-teal-50 rounded-2xl p-8 border border-slate-200">
-            <div className="flex items-start gap-6">
-              <div className="bg-teal-500 text-white p-4 rounded-xl">
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h4 className="font-bold text-slate-800 text-lg mb-2">About API Keys</h4>
-                <p className="text-slate-600 mb-4">
-                  API keys let ARTIFICIAL connect to AI services like OpenAI and Google Gemini. 
-                  Facilitators set these up once before hosting games. Usage has small costs 
-                  (typically $0.01-0.10 per AI generation).
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <a 
-                    href="https://platform.openai.com/api-keys" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-teal-600 hover:text-teal-700 text-sm font-medium flex items-center gap-1"
-                  >
-                    Get OpenAI Key →
-                  </a>
-                  <a 
-                    href="https://aistudio.google.com/apikey" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-teal-600 hover:text-teal-700 text-sm font-medium flex items-center gap-1"
-                  >
-                    Get Gemini Key →
-                  </a>
-                  <button 
-                    onClick={onOpenSettings}
-                    className="text-teal-600 hover:text-teal-700 text-sm font-medium flex items-center gap-1"
-                  >
-                    Open Settings →
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
-      
-      {/* About Section */}
-      <section className="py-20 px-4 bg-slate-50" id="about">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-black text-slate-800 mb-4">
-              About ARTIFICIAL
-            </h2>
-            <p className="text-slate-600">
-              Educational games designed to build AI literacy for everyone
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <span className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center text-teal-600">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </span>
-                Why AI Literacy?
-              </h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                AI is everywhere—in your social feeds, search results, and creative tools. 
-                Understanding how AI works helps you make better decisions about what to trust 
-                and how to use these powerful tools responsibly.
-              </p>
-            </div>
-            
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <span className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center text-amber-600">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                </span>
-                Who Is This For?
-              </h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                Community groups, educators, libraries, civic organizations, and anyone who wants to 
-                understand AI better. No technical background required—just curiosity!
-              </p>
-            </div>
-            
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <span className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                  </svg>
-                </span>
-                How It's Built
-              </h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                Built with React and Firebase for real-time multiplayer. Connects to OpenAI, 
-                Anthropic, and Google Gemini APIs. Designed to be accessible and engaging for all.
-              </p>
-            </div>
-            
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <span className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center text-green-600">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </span>
-                Free & Open
-              </h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                ARTIFICIAL is free to use for educational purposes. Host unlimited games with your 
-                own API keys. Small API costs apply for AI features.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-      
-      {/* FAQ Section - With API Key Info */}
-      <section className="py-20 px-4 bg-white" id="faq">
+
+      {/* FAQ Section - Closed by default */}
+      <section className="py-16 px-4 bg-white" id="faq">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-slate-800 text-center mb-12">
+          <h2 className="text-2xl font-bold text-slate-800 text-center mb-8">
             Frequently Asked Questions
           </h2>
-          
-          <div className="space-y-4">
+
+          <div className="space-y-3">
             {[
-              {
-                q: "Do I need coding experience?",
-                a: "Nope! All games are designed for beginners. Vibe Code Challenge specifically teaches you to build apps by describing what you want—no coding required."
-              },
-              {
-                q: "What are API keys and do I need them?",
-                a: "API keys are like passwords that let ARTIFICIAL connect to AI services. Facilitators need to set up at least one key (OpenAI or Gemini) to use AI features. Get them free at platform.openai.com or aistudio.google.com. There are small usage costs (~$0.01-0.10 per generation)."
-              },
-              {
-                q: "How much does it cost to run a session?",
-                a: "A typical workshop session costs $1-5 in API usage. Spot the Fake uses minimal AI. Meme Machine and Vibe Code use more. Set spending limits in your API provider dashboard."
-              },
-              {
-                q: "How many players can join?",
-                a: "Games support 2-20 players depending on the game. Perfect for classrooms, workshops, or small group sessions."
-              },
-              {
-                q: "Can I use this for my class or workshop?",
-                a: "Absolutely! ARTIFICIAL is designed for educational settings. Host as many sessions as you want. Many educators use it for media literacy, computer science, and ethics discussions."
-              },
-              {
-                q: "What ages is this appropriate for?",
-                a: "We recommend ages 13+ due to some real-world examples discussing misinformation. Content is educational and age-appropriate."
-              },
+              { q: "Do I need coding experience?", a: "Nope! All games are designed for beginners. Vibe Code Challenge specifically teaches you to build apps by describing what you want." },
+              { q: "How many players can join?", a: "Games support 2-20 players depending on the game. Perfect for classrooms, workshops, or small group sessions." },
+              { q: "Can I use this for my class or workshop?", a: "Absolutely! ARTIFICIAL is designed for educational settings. Many educators use it for media literacy, computer science, and ethics discussions." },
+              { q: "What ages is this appropriate for?", a: "We recommend ages 13+ due to some real-world examples discussing misinformation. Content is educational and age-appropriate." },
+              { q: "Is it really free?", a: "Yes! ARTIFICIAL is free and open source. The only cost is a small per-use fee from the AI provider (typically pennies per generation) if you bring your own API key." },
             ].map((faq, i) => (
-              <details 
-                key={i}
-                className="bg-slate-50 rounded-xl p-6 cursor-pointer group border border-slate-200"
-              >
-                <summary className="font-semibold text-slate-800 list-none flex justify-between items-center">
+              <details key={i} className="bg-slate-50 rounded-xl px-5 py-4 cursor-pointer group border border-slate-200 hover:border-teal-300 transition-colors">
+                <summary className="font-semibold text-slate-800 list-none flex justify-between items-center text-sm">
                   {faq.q}
-                  <span className="text-teal-500 group-open:rotate-180 transition-transform ml-4">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <span className="text-teal-500 group-open:rotate-180 transition-transform ml-4 flex-shrink-0">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </span>
                 </summary>
-                <p className="mt-4 text-slate-600 leading-relaxed">{faq.a}</p>
+                <p className="mt-3 text-slate-600 text-sm leading-relaxed">{faq.a}</p>
               </details>
             ))}
           </div>
         </div>
       </section>
-      
+
       {/* CTA Section */}
-      <section className="py-20 px-4 bg-gradient-to-r from-slate-800 to-teal-900 text-white">
+      <section className="py-16 px-4 bg-gradient-to-r from-slate-800 to-teal-900 text-white">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="flex justify-center mb-6">
-            <PixelByte size={80} />
+          <div className="flex justify-center mb-4">
+            <PixelByte size={64} />
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold mb-3">
             Ready to Play?
           </h2>
-          <p className="text-xl text-white/80 mb-8">
+          <p className="text-lg text-white/80 mb-6">
             Gather your group and start building AI literacy together!
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              onClick={onHost}
-              variant="custom"
-              size="lg"
-              className="bg-teal-400 hover:bg-teal-300 text-slate-900 hover:scale-105 transition-all shadow-lg font-bold"
-            >
+            <Button onClick={onHost} variant="custom" size="lg" className="bg-teal-400 hover:bg-teal-300 text-slate-900 hover:scale-105 transition-all shadow-lg font-bold">
               🎮 Host a Game Now
             </Button>
-            <Button 
-              onClick={onJoin}
-              variant="custom"
-              size="lg"
-              className="bg-amber-400 text-slate-900 hover:bg-amber-300 hover:scale-105 transition-all shadow-lg font-bold"
-            >
+            <Button onClick={onJoin} variant="custom" size="lg" className="bg-amber-400 text-slate-900 hover:bg-amber-300 hover:scale-105 transition-all shadow-lg font-bold">
               🔗 Join with Code
             </Button>
           </div>
         </div>
       </section>
-      
-      {/* Footer - Simplified & Centered */}
-      <footer className="py-12 px-4 bg-slate-900 text-white">
-        <div className="max-w-3xl mx-auto text-center">
-          {/* Info Page Links */}
-          <div className="flex flex-wrap items-center justify-center gap-6 mb-8">
-            <button 
-              onClick={() => onShowInfoPage && onShowInfoPage('ai-image-generation')} 
-              className="text-teal-400 hover:text-teal-300 transition-colors font-medium"
-            >
-              AI Image Generation
-            </button>
-            <button 
-              onClick={() => onShowInfoPage && onShowInfoPage('prompt-engineering')} 
-              className="text-amber-400 hover:text-amber-300 transition-colors font-medium"
-            >
-              Prompt Engineering
-            </button>
-            <button 
-              onClick={() => onShowInfoPage && onShowInfoPage('for-facilitators')} 
-              className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
-            >
-              For Facilitators
-            </button>
+
+      {/* Footer */}
+      <footer className="py-10 px-4 bg-slate-900 text-white">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex flex-wrap items-center justify-center gap-6 mb-6">
+            <button onClick={() => onShowInfoPage && onShowInfoPage('ai-image-generation')} className="text-teal-400 hover:text-teal-300 transition-colors text-sm font-medium">AI Image Generation</button>
+            <button onClick={() => onShowInfoPage && onShowInfoPage('prompt-engineering')} className="text-amber-400 hover:text-amber-300 transition-colors text-sm font-medium">Prompt Engineering</button>
+            <button onClick={() => onShowInfoPage && onShowInfoPage('for-facilitators')} className="text-blue-400 hover:text-blue-300 transition-colors text-sm font-medium">For Facilitators</button>
           </div>
-          
-          <p className="text-white/70 mb-2">
-            A <a href="https://community.weirdmachine.org" target="_blank" rel="noopener noreferrer" className="text-teal-400 hover:text-teal-300 transition-colors">Community AI</a> app from <a href="https://brooklineinteractive.org" target="_blank" rel="noopener noreferrer" className="text-teal-400 hover:text-teal-300 transition-colors">Brookline Interactive Group</a> in partnership with <a href="https://neighborhoodai.org" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300 transition-colors">Neighborhood AI</a>.
-          </p>
-          <p className="text-white/70 mb-2">
-            Game Designed and Developed by <a href="https://weirdmachine.org" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">Stephen Walter</a> + AI in 2026.
-          </p>
-          <p className="text-white/50 text-sm mb-6">
-            CC BY-SA 4.0 · Free for educational use
-          </p>
-          
-          {/* Icons Row */}
-          <div className="flex items-center justify-center gap-6">
-            <PixelByte size={36} />
-            <a 
-              href="https://github.com/amateurmenace/artificial" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-white/60 hover:text-white transition-colors"
-              title="View on GitHub"
-            >
-              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-                <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
-              </svg>
+
+          <div className="text-center text-sm text-white/60 space-y-1">
+            <p>A <a href="https://community.weirdmachine.org" target="_blank" rel="noopener noreferrer" className="text-teal-400 hover:text-teal-300">Community AI</a> app from <a href="https://brooklineinteractive.org" target="_blank" rel="noopener noreferrer" className="text-teal-400 hover:text-teal-300">Brookline Interactive Group</a> in partnership with <a href="https://neighborhoodai.org" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300">Neighborhood AI</a>.</p>
+            <p>Game Designed and Developed by <a href="https://weirdmachine.org" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Stephen Walter</a> + AI in 2026.</p>
+          </div>
+
+          <div className="flex items-center justify-center gap-5 mt-5">
+            <PixelByte size={28} />
+            <a href="https://weirdmachine.org" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
+              <img src="/weirdmachine.png" alt="Weird Machine" className="h-8 bg-white rounded p-0.5" />
+            </a>
+            <a href="https://brooklineinteractive.org" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
+              <img src="/big-logo.png" alt="Brookline Interactive Group" className="h-8" />
+            </a>
+            <a href="https://github.com/amateurmenace/artificial" target="_blank" rel="noopener noreferrer" className="text-white/50 hover:text-white transition-colors" title="View on GitHub">
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" /></svg>
             </a>
           </div>
+
+          <p className="text-center text-xs text-white/30 mt-4">CC BY-SA 4.0 · Free for educational use</p>
         </div>
       </footer>
       

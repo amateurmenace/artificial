@@ -584,7 +584,7 @@ function App() {
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-b border-[#e2e0dc] px-4 py-3 z-50">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <Logo />
+          <Logo onClick={handleBackToHome} />
           <div className="flex items-center gap-4">
             <a href="#about" className="text-sm text-[#6b7c74] hover:text-[#3d5a4c] hidden md:block">About</a>
             <a href="#faq" className="text-sm text-[#6b7c74] hover:text-[#3d5a4c] hidden md:block">FAQ</a>
@@ -616,85 +616,7 @@ function App() {
         />
       </div>
       
-      {/* Footer */}
-      <footer className="bg-[#3d5a4c] text-white/70 py-8 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-8 mb-8">
-            <div>
-              <Logo />
-              <p className="mt-4 text-sm text-white/50">
-                Educational games for AI literacy.
-                Built with ❤️ for communities.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3">Quick Links</h4>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#about" className="hover:text-white">About</a></li>
-                <li><a href="#faq" className="hover:text-white">FAQ</a></li>
-                <li><button onClick={() => setShowApiModal(true)} className="hover:text-white">API Settings</button></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3">For Facilitators</h4>
-              <ul className="space-y-2 text-sm">
-                <li><button onClick={() => setShowProjector(true)} className="hover:text-white">📺 Projector Mode</button></li>
-                <li><span className="text-white/50">Dashboard available in-game</span></li>
-              </ul>
-            </div>
-          </div>
-          
-          {/* Credits Section */}
-          <div className="border-t border-white/10 pt-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="text-center md:text-left">
-                <p className="text-base text-white font-medium">
-                  A community AI app from <a href="https://brooklineinteractive.org" target="_blank" rel="noopener noreferrer" className="text-[#48a89a] hover:text-[#5bc4b4] underline decoration-2 underline-offset-4 transition-colors">Brookline Interactive Group</a> in partnership with <a href="https://weirdmachine.org" target="_blank" rel="noopener noreferrer" className="text-[#48a89a] hover:text-[#5bc4b4] underline decoration-2 underline-offset-4 transition-colors">Neighborhood AI</a>.
-                </p>
-                <p className="text-base text-white mt-2 font-medium">
-                  Game Designed and Developed by{' '}
-                  <a 
-                    href="https://weirdmachine.org" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-[#48a89a] hover:text-[#5bc4b4] font-bold underline decoration-2 underline-offset-4 transition-colors"
-                  >
-                    Stephen Walter
-                  </a>
-                  {' '}+ AI in 2026.
-                </p>
-              </div>
-              
-              {/* Logo Links */}
-              <div className="flex items-center gap-4">
-                <a href="https://weirdmachine.org" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
-                  <img src="/weirdmachine.png" alt="Weird Machine" className="h-10 bg-white rounded p-1" />
-                </a>
-                <a href="https://brooklineinteractive.org" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
-                  <img src="/big-logo.png" alt="Brookline Interactive Group" className="h-10" />
-                </a>
-                <a href="https://github.com/amateurmenace/artificial" target="_blank" rel="noopener noreferrer" className="text-white/70 hover:text-white" title="View on GitHub">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
-                  </svg>
-                </a>
-              </div>
-            </div>
-            
-            {/* License */}
-            <div className="mt-4 text-center text-xs text-white/40 flex items-center justify-center gap-2">
-              <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-white/60">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v-2h-2v2zm0-4h2V7h-2v6z"/>
-                </svg>
-                CC BY-SA 4.0
-              </a>
-              <span>•</span>
-              <span>Free for educational use</span>
-            </div>
-          </div>
-        </div>
-      </footer>
+      {/* Footer is inside EnhancedHomepage */}
       
       {/* Host Modal */}
       <Modal 

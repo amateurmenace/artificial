@@ -5,17 +5,17 @@ import React, { useState, useEffect, useRef } from 'react';
 // BASIC COMPONENTS
 // ============================================
 
-export const Logo = () => (
-  <div className="flex items-center gap-3">
+export const Logo = ({ onClick }) => (
+  <button onClick={onClick || (() => { window.location.href = '/'; })} className="flex items-center gap-3 cursor-pointer bg-transparent border-none p-0">
     <div className="flex flex-col gap-1">
       <div className="w-10 h-2 bg-[#3d5a4c] rounded-full"></div>
       <div className="w-10 h-2 bg-[#48a89a] rounded-full"></div>
     </div>
-    <div>
+    <div className="text-left">
       <div className="text-2xl font-bold text-[#3d5a4c] tracking-wider">ARTIFICIAL</div>
       <div className="text-xs font-medium text-[#48a89a] tracking-wide">games for ai literacy</div>
     </div>
-  </div>
+  </button>
 );
 
 export const Button = ({ children, variant = 'primary', size = 'md', onClick, disabled, className = '', loading = false, type = 'button', style = {} }) => {

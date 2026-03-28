@@ -113,6 +113,7 @@ const ActivityFeed = ({ activities = [] }) => (
       <h3 className="text-white font-bold flex items-center gap-2">
         <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
         Live Activity
+        <span className="ml-auto text-xs text-white/50 font-normal">{activities.length} events</span>
       </h3>
     </div>
     <div className="p-4 h-64 overflow-y-auto bg-slate-50">
@@ -120,20 +121,24 @@ const ActivityFeed = ({ activities = [] }) => (
         <div className="flex flex-col items-center justify-center h-full text-slate-400">
           <span className="text-4xl mb-2">⏳</span>
           <p>Waiting for activity...</p>
+          <p className="text-xs mt-1">Player actions will appear here in real time</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {activities.slice(-15).reverse().map((act, i) => (
-            <div 
-              key={i} 
-              className={`p-3 rounded-xl text-sm transition-all ${
-                i === 0 ? 'bg-amber-100 border-l-4 border-amber-500 animate-pulse' : 'bg-white border border-slate-200'
+          {activities.slice(0, 20).map((act, i) => (
+            <div
+              key={i}
+              className={`p-2.5 rounded-xl text-sm transition-all flex items-center gap-2 ${
+                i === 0 ? 'bg-amber-50 border-l-4 border-amber-500' : 'bg-white border border-slate-200'
               }`}
             >
-              <span className="font-bold text-slate-800">{act.player}</span>
-              <span className="text-slate-600"> {act.action}</span>
+              <span className="text-base flex-shrink-0">{act.icon || '⚡'}</span>
+              <div className="flex-1 min-w-0">
+                <span className="font-bold text-slate-800">{act.player}</span>
+                <span className="text-slate-600"> {act.action}</span>
+              </div>
               {act.time && (
-                <span className="text-slate-400 text-xs ml-2">{act.time}</span>
+                <span className="text-slate-400 text-[10px] flex-shrink-0">{act.time}</span>
               )}
             </div>
           ))}
@@ -535,17 +540,75 @@ export const FacilitatorDashboard = ({
   const players = Object.values(room?.players || {});
   const submissions = Object.values(room?.submissions || {});
   
-  // Build activity feed from submissions
-  const activities = submissions.map(s => ({
-    player: s.playerName || 'Unknown',
-    action: s.type === 'meme-complete' ? '🎨 submitted their meme' :
-            s.type === 'app-complete' ? '💻 completed their app' :
-            s.type === 'round1-complete' ? `finished Round 1 (${s.correct}/${s.total} correct)` :
-            s.type === 'round2-complete' ? `finished Round 2 (${s.correct}/${s.total} correct)` :
-            s.type === 'app-reaction' ? `reacted to an app` :
-            'completed an action',
-    time: s.timestamp ? new Date(s.timestamp).toLocaleTimeString() : ''
-  }));
+  // Build comprehensive activity feed from all room data
+  const activities = (() => {
+    const acts = [];
+
+    // Player join events
+    players.forEach(p => {
+      acts.push({
+        player: p.name || 'Unknown',
+        action: 'joined the game',
+        icon: '👋',
+        time: '',
+        priority: 0,
+      });
+    });
+
+    // Submission events
+    submissions.forEach(s => {
+      const actionMap = {
+        'meme-complete': { text: 'submitted their meme', icon: '🎨' },
+        'app-complete': { text: 'submitted their app', icon: '💻' },
+        'round1-complete': { text: `finished Round 1 (${s.correct || 0}/${s.total || 0} correct)`, icon: '🔍' },
+        'round2-complete': { text: `finished Round 2 (${s.correct || 0}/${s.total || 0} correct)`, icon: '🔍' },
+        'reaction': { text: `reacted ${s.reaction || ''} to ${s.targetPlayerId ? 'a submission' : 'something'}`, icon: '💬' },
+        'comment': { text: `commented on a submission`, icon: '💬' },
+        'share': { text: `shared a submission`, icon: '📤' },
+        'vote': { text: `cast their vote`, icon: '🗳️' },
+        'remix': { text: `submitted a remix`, icon: '🔀' },
+      };
+      const mapped = actionMap[s.type] || { text: `${s.type || 'did something'}`, icon: '⚡' };
+      acts.push({
+        player: s.playerName || 'Player',
+        action: mapped.text,
+        icon: mapped.icon,
+        time: s.timestamp ? new Date(s.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '',
+        priority: s.timestamp || 0,
+      });
+    });
+
+    // Vote events from room.votes
+    if (room?.votes) {
+      Object.entries(room.votes).forEach(([oderId, targetId]) => {
+        const voter = players.find(p => p.id === oderId);
+        const target = players.find(p => p.id === targetId);
+        if (voter) {
+          acts.push({
+            player: voter.name || 'Player',
+            action: `voted for ${target?.name || 'someone'}`,
+            icon: '🗳️',
+            time: '',
+            priority: 1,
+          });
+        }
+      });
+    }
+
+    // Phase change info
+    if (room?.phase) {
+      acts.push({
+        player: 'Game',
+        action: `phase: ${room.phase}`,
+        icon: '🎯',
+        time: '',
+        priority: -1,
+      });
+    }
+
+    // Sort by timestamp (newest first), with player joins last
+    return acts.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+  })();
   
   const handleSelectForDemo = (item, type) => {
     setDemoItem(item);

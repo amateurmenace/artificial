@@ -831,6 +831,11 @@ const SpotTheFake = ({ gameCode, room, userId, isHost, onBack, onOpenDashboard }
     <div className="relative">
       {renderPhase()}
       <button onClick={onBack} className="fixed top-4 left-4 z-50 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-full text-sm font-medium border border-slate-700">Exit</button>
+      {isHost && onOpenDashboard && (
+        <button onClick={onOpenDashboard} className="fixed top-4 left-28 z-50 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-4 py-2 rounded-full text-sm font-medium border border-purple-500/50 shadow-lg flex items-center gap-1.5">
+          📊 Dashboard
+        </button>
+      )}
     </div>
   );
 };

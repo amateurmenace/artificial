@@ -1043,6 +1043,15 @@ Provide your analysis.`
   };
   
   const handleSubmit = () => {
+    // Flatten aiFeedback to avoid nested arrays/objects that Firestore arrayUnion can't handle
+    const flatFeedback = aiFeedback ? {
+      overallScore: aiFeedback.overallScore || 0,
+      messageClarity: aiFeedback.messageClarity || 0,
+      civicRelevance: aiFeedback.civicRelevance || 0,
+      viralPotential: aiFeedback.viralPotential || 0,
+      feedback: aiFeedback.feedback || '',
+    } : null;
+
     submitToGame(gameCode, {
       type: 'meme-complete',
       playerId: userId,
@@ -1053,9 +1062,8 @@ Provide your analysis.`
       prompt: imagePrompt,
       iterationCount,
       slopLevel,
-      aiFeedback,
+      aiFeedback: flatFeedback,
       reactions: {},
-      comments: [],
       shares: 0,
       timestamp: Date.now()
     });
@@ -1351,8 +1359,25 @@ Provide your analysis.`
                 
                 <div className="flex gap-3">
                   <Button onClick={() => setStage('concept')} className="bg-slate-700 text-white px-6 py-3 rounded-xl">Back</Button>
-                  <Button onClick={async () => { await enhancePromptWithByte(); setStage('enhance'); }} className="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">✨ Enhance with BYTE →</Button>
+                  <Button
+                    onClick={async () => { setStage('enhance'); await enhancePromptWithByte(); }}
+                    disabled={isEnhancing || !visualConcept}
+                    className="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold disabled:opacity-50"
+                  >
+                    {isEnhancing ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        BYTE is enhancing...
+                      </span>
+                    ) : '✨ Enhance with BYTE →'}
+                  </Button>
                 </div>
+                <button
+                  onClick={() => { setImagePrompt(buildFullPrompt(visualConcept)); setStage('generate'); }}
+                  className="w-full text-center text-slate-500 hover:text-slate-300 text-xs mt-2 transition-colors"
+                >
+                  Skip enhancement → go straight to image generation
+                </button>
               </>
             )}
             
@@ -1772,6 +1797,11 @@ Provide your analysis.`
     <div className="relative">
       {renderPhase()}
       <button onClick={onBack} className="fixed top-4 left-4 z-50 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-full text-sm font-medium border border-slate-700">Exit</button>
+      {isHost && (
+        <button onClick={onOpenDashboard} className="fixed top-4 left-28 z-50 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-4 py-2 rounded-full text-sm font-medium border border-purple-500/50 shadow-lg flex items-center gap-1.5">
+          📊 Dashboard
+        </button>
+      )}
       <PromptTimelineButton onClick={() => setShowTimeline(true)} />
       <PromptTimelineSidebar isOpen={showTimeline} onClose={() => setShowTimeline(false)} />
     </div>
