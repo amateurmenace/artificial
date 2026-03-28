@@ -1,4 +1,4 @@
-# 🚀 ARTIFICIAL v4 Deployment Guide
+# ðŸš€ ARTIFICIAL v4 Deployment Guide
 
 ## Option 1: Firebase Hosting (Recommended)
 
@@ -116,7 +116,7 @@ npm run deploy
 - Verify you can create a room
 
 ### 2. Set Up API Key
-- Click "⚠️ Set API Key" in the header
+- Click "âš ï¸ Set API Key" in the header
 - Enter your OpenAI API key
 - Test AI features in a game
 

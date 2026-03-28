@@ -1,573 +1,414 @@
-// SPOT THE FAKE v2 - Enhanced Game Component
-// Bold video-game style UI with werewolf finale and proper image matching
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, Button, Timer, PlayerList, Badge, ProgressSteps } from './components';
+// SPOT THE FAKE v6 - Fixed Round Progression
+// All rounds work: Real vs AI, Edited, Ethics, Legal, Werewolf, Quiz
+
+import React, { useState, useEffect } from 'react';
+import { Button } from './components';
+import { updateGamePhase, updatePlayerScore, submitToGame, submitVote } from './firebase';
+import { round1Pairs, round2Pairs, getShuffledPairs } from './image-database';
 import { educationalContent, getDiscussionPrompts, getQuizQuestions } from './educational-content';
-import { updateGamePhase, updatePlayerScore, submitToGame } from './firebase';
 
 // ============================================
-// ANIMATED COMPONENTS
+// SCORING
 // ============================================
 
-// Scanline effect for retro feel
-const Scanlines = () => (
-  <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.03]" 
-    style={{ 
-      background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)'
-    }} 
-  />
+const POINTS = {
+  correct: 10,
+  speed: 2,
+  streak: 3,
+  werewolfDetective: 30,
+  werewolfImpostor: 50,
+  quiz: 15,
+};
+
+// ============================================
+// COMPONENTS
+// ============================================
+
+const FloatingParticles = ({ count = 15 }) => (
+  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    {Array.from({ length: count }, (_, i) => (
+      <div key={i} className="absolute rounded-full bg-gradient-to-br from-cyan-500/10 to-purple-500/10"
+        style={{ width: Math.random() * 8 + 4, height: Math.random() * 8 + 4, left: `${Math.random() * 100}%`,
+          animation: `float-up ${15 + Math.random() * 10}s linear ${Math.random() * 5}s infinite` }} />
+    ))}
+    <style>{`@keyframes float-up { 0% { transform: translateY(100vh); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translateY(-100vh); opacity: 0; } }`}</style>
+  </div>
 );
 
-// Floating particles
-const FloatingParticles = ({ count = 20 }) => {
-  const particles = Array.from({ length: count }, (_, i) => ({
-    id: i,
-    size: Math.random() * 8 + 4,
-    x: Math.random() * 100,
-    duration: Math.random() * 20 + 10,
-    delay: Math.random() * 5,
-  }));
-
+const BigTimer = ({ seconds, totalSeconds, label }) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  const progress = totalSeconds > 0 ? (seconds / totalSeconds) * 100 : 100;
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden">
-      {particles.map(p => (
-        <div
-          key={p.id}
-          className="absolute rounded-full bg-gradient-to-br from-[#48a89a]/20 to-[#d4a84b]/20"
-          style={{
-            width: p.size,
-            height: p.size,
-            left: `${p.x}%`,
-            animation: `float-up ${p.duration}s linear ${p.delay}s infinite`,
-          }}
-        />
-      ))}
-      <style jsx>{`
-        @keyframes float-up {
-          0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
-          10% { opacity: 0.6; }
-          90% { opacity: 0.6; }
-          100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
-        }
-      `}</style>
-    </div>
-  );
-};
-
-// Glitch text effect
-const GlitchText = ({ children, className = '' }) => {
-  const [isGlitching, setIsGlitching] = useState(false);
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setIsGlitching(true);
-      setTimeout(() => setIsGlitching(false), 200);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <span className={`relative inline-block ${className}`}>
-      <span className={isGlitching ? 'animate-glitch' : ''}>{children}</span>
-      {isGlitching && (
-        <>
-          <span className="absolute top-0 left-0 text-red-500 opacity-70" 
-            style={{ clipPath: 'polygon(0 0, 100% 0, 100% 45%, 0 45%)', transform: 'translate(-2px, 0)' }}>
-            {children}
-          </span>
-          <span className="absolute top-0 left-0 text-blue-500 opacity-70" 
-            style={{ clipPath: 'polygon(0 55%, 100% 55%, 100% 100%, 0 100%)', transform: 'translate(2px, 0)' }}>
-            {children}
-          </span>
-        </>
-      )}
-    </span>
-  );
-};
-
-// Animated progress bar
-const AnimatedProgressBar = ({ current, total, label }) => {
-  const percentage = (current / total) * 100;
-  
-  return (
-    <div className="w-full">
-      {label && <div className="text-sm text-white/70 mb-2">{label}</div>}
-      <div className="h-4 bg-white/20 rounded-full overflow-hidden backdrop-blur-sm">
-        <div 
-          className="h-full bg-gradient-to-r from-[#48a89a] via-[#5bc0a8] to-[#d4a84b] transition-all duration-500 relative"
-          style={{ width: `${percentage}%` }}
-        >
-          <div className="absolute inset-0 bg-white/30 animate-shimmer" 
-            style={{ 
-              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
-              animation: 'shimmer 2s infinite'
-            }} 
-          />
-        </div>
+    <div className={`rounded-2xl p-4 ${seconds <= 10 ? 'bg-gradient-to-r from-red-600 to-rose-600 animate-pulse' : seconds <= 30 ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-gradient-to-r from-emerald-600 to-teal-600'}`}>
+      <div className="flex items-center justify-between text-white">
+        <div className="text-sm font-medium opacity-80">{label || '⏱️ TIME'}</div>
+        <div className="text-4xl font-mono font-black">{mins}:{secs.toString().padStart(2, '0')}</div>
       </div>
-      <style jsx>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
-    </div>
-  );
-};
-
-// Image comparison slider
-const ImageComparisonSlider = ({ beforeImage, afterImage, beforeLabel = "Real", afterLabel = "AI" }) => {
-  const [sliderPos, setSliderPos] = useState(50);
-  const containerRef = useRef(null);
-  const isDragging = useRef(false);
-
-  const handleMove = useCallback((clientX) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    setSliderPos((x / rect.width) * 100);
-  }, []);
-
-  const handleMouseDown = () => { isDragging.current = true; };
-  const handleMouseUp = () => { isDragging.current = false; };
-  const handleMouseMove = (e) => { if (isDragging.current) handleMove(e.clientX); };
-  const handleTouchMove = (e) => { handleMove(e.touches[0].clientX); };
-
-  useEffect(() => {
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('mousemove', handleMouseMove);
-    return () => {
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('mousemove', handleMouseMove);
-    };
-  }, []);
-
-  return (
-    <div 
-      ref={containerRef}
-      className="relative w-full aspect-video rounded-2xl overflow-hidden cursor-ew-resize select-none"
-      onTouchMove={handleTouchMove}
-    >
-      {/* Before image (full width) */}
-      <img src={beforeImage} alt={beforeLabel} className="absolute inset-0 w-full h-full object-cover" />
-      
-      {/* After image (clipped) */}
-      <div 
-        className="absolute inset-0 overflow-hidden"
-        style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}
-      >
-        <img src={afterImage} alt={afterLabel} className="absolute inset-0 w-full h-full object-cover" />
-      </div>
-      
-      {/* Slider handle */}
-      <div 
-        className="absolute top-0 bottom-0 w-1 bg-white shadow-lg cursor-ew-resize"
-        style={{ left: `${sliderPos}%`, transform: 'translateX(-50%)' }}
-        onMouseDown={handleMouseDown}
-        onTouchStart={handleMouseDown}
-      >
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center">
-          <span className="text-[#3d5a4c] font-bold">⟷</span>
-        </div>
-      </div>
-      
-      {/* Labels */}
-      <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm font-bold">
-        {beforeLabel}
-      </div>
-      <div className="absolute top-4 right-4 bg-red-600/90 text-white px-3 py-1 rounded-full text-sm font-bold">
-        {afterLabel}
+      <div className="mt-2 h-2 bg-white/20 rounded-full overflow-hidden">
+        <div className="h-full bg-white/60 transition-all duration-1000" style={{ width: `${progress}%` }} />
       </div>
     </div>
   );
 };
 
-// Reveal animation card
-const RevealCard = ({ children, delay = 0, className = '' }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
-
+const ByteHost = ({ message, mood = 'thinking' }) => {
+  const moods = {
+    thinking: { emoji: '🤔', color: 'from-blue-500 to-cyan-500' },
+    teaching: { emoji: '🎓', color: 'from-purple-500 to-pink-500' },
+    excited: { emoji: '🤩', color: 'from-yellow-500 to-orange-500' },
+    proud: { emoji: '✨', color: 'from-pink-500 to-rose-500' },
+    detective: { emoji: '🕵️', color: 'from-slate-600 to-slate-700' },
+    warning: { emoji: '⚠️', color: 'from-red-500 to-orange-500' }
+  };
+  const { emoji, color } = moods[mood] || moods.thinking;
   return (
-    <div 
-      ref={ref}
-      className={`transform transition-all duration-700 ${
-        isVisible 
-          ? 'opacity-100 translate-y-0' 
-          : 'opacity-0 translate-y-8'
-      } ${className}`}
-    >
-      {children}
+    <div className="flex gap-4 items-start bg-slate-800/80 backdrop-blur rounded-2xl p-4 border border-slate-700">
+      <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center text-3xl flex-shrink-0 shadow-lg`}>{emoji}</div>
+      <div className="flex-1"><div className="text-slate-100 leading-relaxed">{message}</div><div className="text-slate-500 text-xs mt-2">— BYTE</div></div>
     </div>
   );
 };
+
+const LearningTipCard = ({ tip, onContinue, isCorrect }) => (
+  <div className={`rounded-3xl p-6 border-2 ${isCorrect ? 'bg-gradient-to-br from-emerald-500/20 to-green-500/20 border-emerald-500/40' : 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-500/40'}`}>
+    <div className="flex items-center gap-3 mb-4">
+      <div className="text-5xl">{tip?.icon || '💡'}</div>
+      <div>
+        <div className={`text-sm font-bold ${isCorrect ? 'text-emerald-400' : 'text-amber-400'}`}>{isCorrect ? '✓ CORRECT!' : '✗ NOT QUITE'}</div>
+        <h3 className="text-xl font-black text-white">{tip?.title || 'Learning Tip'}</h3>
+      </div>
+    </div>
+    <p className="text-slate-200 mb-3">{tip?.content || 'AI detection takes practice!'}</p>
+    <div className="bg-black/30 rounded-xl p-4 mb-4">
+      <div className="text-cyan-400 text-xs font-bold mb-1">💡 PRO TIP</div>
+      <p className="text-slate-300 text-sm">{tip?.detail || 'Look for inconsistencies.'}</p>
+    </div>
+    <button onClick={onContinue} className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white py-3 rounded-xl font-bold transition-colors">Continue →</button>
+  </div>
+);
+
+const ImageChoice = ({ image, label, onClick, selected, disabled, result }) => (
+  <button onClick={onClick} disabled={disabled}
+    className={`relative rounded-2xl overflow-hidden transition-all ${disabled ? '' : 'hover:scale-[1.02] hover:shadow-xl cursor-pointer'} ${selected && result === 'correct' ? 'ring-4 ring-emerald-500' : selected && result === 'wrong' ? 'ring-4 ring-red-500' : selected ? 'ring-4 ring-cyan-500' : ''}`}>
+    <img src={image} alt={label} className="w-full aspect-square object-cover" loading="lazy" />
+    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+      <div className="text-white font-bold text-lg">{label}</div>
+    </div>
+    {result && (
+      <div className={`absolute inset-0 flex items-center justify-center ${result === 'correct' ? 'bg-emerald-500/40' : 'bg-red-500/40'}`}>
+        <div className="text-6xl">{result === 'correct' ? '✓' : '✗'}</div>
+      </div>
+    )}
+  </button>
+);
+
+const RoundProgress = ({ current, total, round }) => (
+  <div className="bg-slate-800/80 backdrop-blur rounded-xl p-4 border border-slate-700">
+    <div className="flex justify-between items-center mb-2">
+      <span className="text-slate-400 text-sm">{round}</span>
+      <span className="text-white font-bold">{current} / {total}</span>
+    </div>
+    <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+      <div className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-300" style={{ width: `${(current / total) * 100}%` }} />
+    </div>
+  </div>
+);
+
+const ScoreDisplay = ({ score, streak }) => (
+  <div className="flex gap-4">
+    <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl px-4 py-2 text-white">
+      <div className="text-xs opacity-80">SCORE</div>
+      <div className="text-2xl font-black">{score}</div>
+    </div>
+    {streak > 1 && (
+      <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl px-4 py-2 text-white">
+        <div className="text-xs opacity-80">STREAK</div>
+        <div className="text-2xl font-black">🔥 {streak}</div>
+      </div>
+    )}
+  </div>
+);
 
 // ============================================
-// IMAGE DATABASE WITH PROPER MATCHING
-// ============================================
-
-// Real-world examples with PROPERLY MATCHING IMAGES
-const enhancedExamples = [
-  {
-    id: "pentagon-explosion",
-    title: "The Pentagon 'Explosion' (May 2023)",
-    description: "An AI-generated image showing an explosion near the Pentagon went viral on Twitter, briefly causing stock market fluctuations before being debunked.",
-    impact: "The S&P 500 briefly dropped 0.3% before recovering, demonstrating how AI fakes can affect financial markets in minutes.",
-    detection: "Telltale signs included: an impossible fence structure, inconsistent smoke patterns, buildings that didn't match the actual Pentagon layout, and no corroborating news reports.",
-    category: "misinformation",
-    // Smoke/explosion image that matches the description
-    image: "https://images.unsplash.com/photo-1486551937199-baf066858de7?w=800&h=500&fit=crop",
-    imageCaption: "AI can generate convincing but fake emergency scenes",
-    tips: [
-      "Check for impossible architectural details",
-      "Look for corroborating news sources",
-      "Examine smoke and fire patterns for consistency",
-      "Verify with official sources before sharing"
-    ]
-  },
-  {
-    id: "pope-puffer",
-    title: "The Pope in a Puffer Jacket (March 2023)",
-    description: "A Midjourney-generated image of Pope Francis wearing a stylish white puffer jacket went massively viral, fooling millions of people across social media.",
-    impact: "Shared over 20 million times before being identified as AI-generated. One of the first viral AI images to fool mainstream audiences.",
-    detection: "Close examination revealed: distorted crucifix, irregular glasses frames, hands that don't quite look anatomically correct, and unusual fabric textures.",
-    category: "viral-hoax",
-    // Fashion/jacket image that represents the concept
-    image: "https://images.unsplash.com/photo-1544022613-e87ca75a784a?w=800&h=500&fit=crop",
-    imageCaption: "AI fashion images often have subtle clothing defects",
-    tips: [
-      "Examine hands and fingers carefully",
-      "Check religious symbols for accuracy",
-      "Look at fabric folds and textures",
-      "Verify with official Vatican sources"
-    ]
-  },
-  {
-    id: "political-fakes",
-    title: "AI in Political Campaigns (2024)",
-    description: "AI-generated images and audio have been used in political campaigns worldwide, from fake endorsements to manipulated speeches and fabricated crowd scenes.",
-    impact: "Raised serious concerns about election integrity and led to calls for AI content labeling laws in multiple countries.",
-    detection: "Check for lip-sync issues in video, unnatural speech patterns, crowd duplication, and always verify with official campaign sources.",
-    category: "political",
-    // Political rally/crowd image
-    image: "https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?w=800&h=500&fit=crop",
-    imageCaption: "Crowd scenes and political events are commonly manipulated",
-    tips: [
-      "Look for duplicated faces in crowds",
-      "Check lip-sync in video content",
-      "Verify quotes with official transcripts",
-      "Be skeptical of sensational claims before elections"
-    ]
-  },
-  {
-    id: "celebrity-scams",
-    title: "Celebrity Investment Scams (Ongoing)",
-    description: "Scammers use AI-generated images and videos of celebrities to promote fake investment schemes, cryptocurrency scams, and fraudulent products.",
-    impact: "Millions of dollars have been stolen from victims who believed fake celebrity endorsements. Led to renewed calls for AI disclosure laws.",
-    detection: "Look for unnatural facial movements, generic backgrounds, and always verify through official celebrity channels - never trust unsolicited investment advice.",
-    category: "fraud",
-    // Celebrity/social media style image
-    image: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&h=500&fit=crop",
-    imageCaption: "Social media posts claiming celebrity endorsements are often AI-generated",
-    tips: [
-      "Never trust unsolicited investment advice",
-      "Verify through official celebrity accounts",
-      "Look for 'too good to be true' returns",
-      "Check if the video was posted by verified accounts"
-    ]
-  }
-];
-
-// Game images - curated sets of real photos (from Unsplash, all real)
-const imageDatabase = {
-  round1: [
-    { 
-      id: 'r1-1', 
-      url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=400&fit=crop', 
-      isAI: false, 
-      category: 'portrait', 
-      hint: 'Look at the skin texture and eye reflections - real photos have natural imperfections',
-      explanation: 'This is a real photograph. Notice the natural skin texture, authentic eye reflections, and asymmetrical features typical of real human faces.'
-    },
-    { 
-      id: 'r1-2', 
-      url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=400&fit=crop', 
-      isAI: false, 
-      category: 'landscape', 
-      hint: 'Check the atmospheric perspective and natural lighting gradients',
-      explanation: 'Real landscape with natural atmospheric haze, consistent lighting, and authentic geological formations.'
-    },
-    { 
-      id: 'r1-3', 
-      url: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=600&h=400&fit=crop', 
-      isAI: false, 
-      category: 'animals', 
-      hint: 'Examine the fur texture and whisker patterns',
-      explanation: 'Real cat photograph. Notice the detailed fur texture, authentic whisker patterns, and natural eye reflections.'
-    },
-    { 
-      id: 'r1-4', 
-      url: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=600&h=400&fit=crop', 
-      isAI: false, 
-      category: 'technology', 
-      hint: 'Check for readable text on screens and consistent reflections',
-      explanation: 'Real photograph of a laptop. Text on screen is readable and consistent, reflections are natural.'
-    },
-    { 
-      id: 'r1-5', 
-      url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&h=400&fit=crop', 
-      isAI: false, 
-      category: 'portrait', 
-      hint: 'Look at the hair edges and ear details',
-      explanation: 'Real portrait with natural hair strands, authentic ear details, and realistic skin tones.'
-    },
-    { 
-      id: 'r1-6', 
-      url: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=600&h=400&fit=crop', 
-      isAI: false, 
-      category: 'nature', 
-      hint: 'Check tree branch patterns and leaf distributions',
-      explanation: 'Real nature photograph with natural tree formations and authentic lighting.'
-    },
-  ],
-  round2: [
-    { 
-      id: 'r2-1', 
-      url: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=600&h=400&fit=crop', 
-      isEdited: false, 
-      category: 'architecture', 
-      hint: 'Check perspective lines and window alignments',
-      explanation: 'Unedited city photograph with correct architectural perspective and natural urban lighting.'
-    },
-    { 
-      id: 'r2-2', 
-      url: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=400&fit=crop', 
-      isEdited: false, 
-      category: 'food', 
-      hint: 'Look at reflections and surface textures',
-      explanation: 'Real food photography with authentic textures, natural steam, and consistent lighting.'
-    },
-    { 
-      id: 'r2-3', 
-      url: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=600&h=400&fit=crop', 
-      isEdited: false, 
-      category: 'animals', 
-      hint: 'Check eye details and whisker placement',
-      explanation: 'Real cat photograph with authentic fur patterns and natural pose.'
-    },
-    { 
-      id: 'r2-4', 
-      url: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=600&h=400&fit=crop', 
-      isEdited: false, 
-      category: 'ocean', 
-      hint: 'Examine wave patterns and water reflections',
-      explanation: 'Real ocean photograph with natural wave formations and authentic water colors.'
-    },
-  ],
-  // Werewolf game images - portrait-style for player assignments
-  werewolf: [
-    { id: 'ww-1', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop', isAI: false },
-    { id: 'ww-2', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop', isAI: false },
-    { id: 'ww-3', url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop', isAI: false },
-    { id: 'ww-4', url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=400&fit=crop', isAI: true }, // Marked as "AI" for game purposes
-    { id: 'ww-5', url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop', isAI: false },
-    { id: 'ww-6', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop', isAI: false },
-    { id: 'ww-7', url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop', isAI: false },
-    { id: 'ww-8', url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop', isAI: false },
-  ]
-};
-
-// ============================================
-// MAIN GAME COMPONENT
+// MAIN COMPONENT
 // ============================================
 
 const SpotTheFake = ({ gameCode, room, userId, isHost, onBack, onOpenDashboard }) => {
   // Game state
-  const [images, setImages] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [pairs, setPairs] = useState([]);
+  const [currentPairIndex, setCurrentPairIndex] = useState(0);
+  const [selectedChoice, setSelectedChoice] = useState(null);
   const [showResult, setShowResult] = useState(false);
-  const [localScore, setLocalScore] = useState(0);
-  const [currentExample, setCurrentExample] = useState(0);
-  const [quizAnswers, setQuizAnswers] = useState({});
+  const [showTip, setShowTip] = useState(false);
+  const [roundComplete, setRoundComplete] = useState(false);
+  
+  // Score
+  const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [showHint, setShowHint] = useState(false);
-  const [zoomImage, setZoomImage] = useState(null);
+  const [correctCount, setCorrectCount] = useState(0);
   
-  // Werewolf game state
-  const [werewolfAssignment, setWerewolfAssignment] = useState(null);
-  const [werewolfVotes, setWerewolfVotes] = useState({});
-  const [werewolfRevealed, setWerewolfRevealed] = useState(false);
-  const [selectedVote, setSelectedVote] = useState(null);
+  // Timer
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [totalTime, setTotalTime] = useState(30);
+  const [timerActive, setTimerActive] = useState(false);
+  const [timerSetting, setTimerSetting] = useState(30);
   
-  // Animation states
-  const [isShaking, setIsShaking] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
+  // Werewolf
+  const [isImpostor, setIsImpostor] = useState(false);
+  const [assignedImage, setAssignedImage] = useState(null);
+  const [werewolfVote, setWerewolfVote] = useState(null);
+  const [werewolfTimer, setWerewolfTimer] = useState(60);
+  const [impostorPlayerId, setImpostorPlayerId] = useState(null);
   
-  const phases = ['lobby', 'intro', 'round1', 'round1-debrief', 'round2', 'round2-debrief', 'ethics', 'legal', 'quiz', 'werewolf', 'werewolf-vote', 'results'];
-  const currentPhaseIndex = phases.indexOf(room?.phase);
+  // Quiz
+  const [quizQuestions, setQuizQuestions] = useState([]);
+  const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
+  const [quizAnswer, setQuizAnswer] = useState(null);
+  const [showQuizResult, setShowQuizResult] = useState(false);
   
-  // Initialize round images
+  const currentPair = pairs[currentPairIndex];
+  const phase = room?.phase || 'lobby';
+  
+  // Determine which round we're in based on phase
+  const isRound1 = phase === 'round1-play';
+  const isRound2 = phase === 'round2-play';
+  const currentRound = isRound2 ? 2 : 1;
+  
+  // Initialize when phase changes
   useEffect(() => {
-    if (room?.phase === 'round1') {
-      setImages([...imageDatabase.round1].sort(() => Math.random() - 0.5));
-      setCurrentIndex(0);
-      setSelectedAnswer(null);
+    console.log('Phase changed to:', phase);
+    
+    if (phase === 'round1-play') {
+      const gamePairs = getShuffledPairs(round1Pairs, 5);
+      console.log('Round 1 pairs:', gamePairs.length);
+      setPairs(gamePairs);
+      setCurrentPairIndex(0);
+      setCorrectCount(0);
+      setRoundComplete(false);
       setShowResult(false);
-      setStreak(0);
-    } else if (room?.phase === 'round2') {
-      setImages([...imageDatabase.round2].sort(() => Math.random() - 0.5));
-      setCurrentIndex(0);
-      setSelectedAnswer(null);
+      setShowTip(false);
+      setSelectedChoice(null);
+      setTimeLeft(room?.timerSeconds || timerSetting);
+      setTotalTime(room?.timerSeconds || timerSetting);
+      setTimerActive(true);
+    } else if (phase === 'round2-play') {
+      const gamePairs = getShuffledPairs(round2Pairs, 5);
+      console.log('Round 2 pairs:', gamePairs.length);
+      setPairs(gamePairs);
+      setCurrentPairIndex(0);
+      setCorrectCount(0);
+      setRoundComplete(false);
       setShowResult(false);
-    } else if (room?.phase === 'werewolf') {
-      assignWerewolfImages();
+      setShowTip(false);
+      setSelectedChoice(null);
+      setTimeLeft(room?.timerSeconds || timerSetting);
+      setTotalTime(room?.timerSeconds || timerSetting);
+      setTimerActive(true);
+    } else if (phase === 'quiz') {
+      setQuizQuestions(getQuizQuestions(5));
+      setCurrentQuizIndex(0);
+      setQuizAnswer(null);
+      setShowQuizResult(false);
+    } else if (phase === 'werewolf-assign') {
+      const players = Object.values(room?.players || {});
+      if (players.length > 0) {
+        const idx = Math.floor(Math.random() * players.length);
+        const impId = players[idx]?.id;
+        setImpostorPlayerId(impId);
+        setIsImpostor(userId === impId);
+        
+        const realImages = [
+          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300',
+          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300',
+        ];
+        const aiImage = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300';
+        setAssignedImage(userId === impId ? aiImage : realImages[Math.floor(Math.random() * realImages.length)]);
+      }
+      setWerewolfVote(null);
+      setWerewolfTimer(60);
+    } else if (phase === 'werewolf-vote') {
+      setWerewolfTimer(60);
     }
-  }, [room?.phase]);
+  }, [phase, userId, room?.timerSeconds]);
   
-  // Werewolf assignment logic
-  const assignWerewolfImages = () => {
-    const players = Object.values(room?.players || {});
-    const availableImages = [...imageDatabase.werewolf].sort(() => Math.random() - 0.5);
-    
-    const myIndex = players.findIndex(p => p.id === userId);
-    if (myIndex === -1) return;
-    
-    // Ensure only one AI image is assigned
-    const realImages = availableImages.filter(img => !img.isAI);
-    const aiImages = availableImages.filter(img => img.isAI);
-    
-    // Random player gets the AI image
-    const aiPlayerIndex = Math.floor(Math.random() * players.length);
-    
-    if (myIndex === aiPlayerIndex) {
-      setWerewolfAssignment({
-        image: aiImages[0],
-        isAI: true,
-        instruction: "🤖 You are THE AI FAKER! Your profile picture is AI-generated. Your mission: convince everyone else that it's real!"
+  // Timer countdown
+  useEffect(() => {
+    if (!timerActive || timeLeft <= 0) return;
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          setTimerActive(false);
+          if (!showResult && !showTip && currentPair) {
+            setShowResult(true);
+            setStreak(0);
+            setTimeout(() => { setShowResult(false); setShowTip(true); }, 1500);
+          }
+          return 0;
+        }
+        return prev - 1;
       });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timerActive, timeLeft, showResult, showTip, currentPair]);
+  
+  // Reset timer for each new pair
+  useEffect(() => {
+    if (currentPair && !showResult && !showTip && !roundComplete && (isRound1 || isRound2)) {
+      setTimeLeft(room?.timerSeconds || timerSetting);
+      setTotalTime(room?.timerSeconds || timerSetting);
+      setTimerActive(true);
+    }
+  }, [currentPairIndex, isRound1, isRound2, roundComplete]);
+  
+  // Werewolf timer
+  useEffect(() => {
+    if (phase === 'werewolf-vote' && werewolfTimer > 0) {
+      const timer = setInterval(() => setWerewolfTimer(prev => prev > 0 ? prev - 1 : 0), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [phase, werewolfTimer]);
+  
+  const handleChoice = (choice) => {
+    if (showResult || showTip || roundComplete) return;
+    setTimerActive(false);
+    setSelectedChoice(choice);
+    
+    let isCorrect = false;
+    if (isRound1) {
+      const realIsLeft = !currentPair.swapped;
+      isCorrect = (choice === 'left' && realIsLeft) || (choice === 'right' && !realIsLeft);
     } else {
-      const realIndex = myIndex > aiPlayerIndex ? myIndex - 1 : myIndex;
-      setWerewolfAssignment({
-        image: realImages[realIndex % realImages.length],
-        isAI: false,
-        instruction: "👤 Your profile picture is REAL! Your mission: figure out who among the players has the AI-generated image."
-      });
+      const originalIsLeft = !currentPair.swapped;
+      isCorrect = (choice === 'left' && originalIsLeft) || (choice === 'right' && !originalIsLeft);
     }
-  };
-  
-  // Handle answer selection with animations
-  const handleAnswer = (answer) => {
-    if (showResult) return;
     
-    setSelectedAnswer(answer);
+    if (isCorrect) {
+      const points = POINTS.correct + (streak * POINTS.streak) + Math.floor(timeLeft / 5) * POINTS.speed;
+      setScore(prev => prev + points);
+      setStreak(prev => prev + 1);
+      setCorrectCount(prev => prev + 1);
+    } else {
+      setStreak(0);
+    }
+    
     setShowResult(true);
+    setTimeout(() => { setShowResult(false); setShowTip(true); }, 1500);
+  };
+  
+  const handleContinue = () => {
+    setShowTip(false);
+    setSelectedChoice(null);
     
-    const currentImage = images[currentIndex];
-    const isCorrect = answer === (currentImage.isAI ? 'ai' : 'real');
-    
-    if (isCorrect) {
-      setLocalScore(s => s + 100 + (streak * 10)); // Streak bonus
-      setStreak(s => s + 1);
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 2000);
+    if (currentPairIndex < pairs.length - 1) {
+      setCurrentPairIndex(prev => prev + 1);
     } else {
-      setStreak(0);
-      setIsShaking(true);
-      setTimeout(() => setIsShaking(false), 500);
-    }
-    
-    // Update score in Firebase
-    if (isCorrect) {
-      updatePlayerScore(gameCode, userId, 100 + (streak * 10));
+      setRoundComplete(true);
+      updatePlayerScore(gameCode, userId, score);
+      submitToGame(gameCode, { type: `round${currentRound}-complete`, playerId: userId, score, correct: correctCount, total: pairs.length });
     }
   };
   
-  // Move to next image
-  const handleNext = () => {
-    if (currentIndex < images.length - 1) {
-      setCurrentIndex(i => i + 1);
-      setSelectedAnswer(null);
-      setShowResult(false);
-      setShowHint(false);
+  const getResult = (choice) => {
+    if (!showResult || selectedChoice !== choice) return null;
+    if (isRound1) {
+      const realIsLeft = !currentPair.swapped;
+      return ((choice === 'left' && realIsLeft) || (choice === 'right' && !realIsLeft)) ? 'correct' : 'wrong';
+    }
+    const originalIsLeft = !currentPair.swapped;
+    return ((choice === 'left' && originalIsLeft) || (choice === 'right' && !originalIsLeft)) ? 'correct' : 'wrong';
+  };
+  
+  const isCorrectAnswer = () => {
+    if (!selectedChoice || !currentPair) return false;
+    if (isRound1) {
+      const realIsLeft = !currentPair.swapped;
+      return (selectedChoice === 'left' && realIsLeft) || (selectedChoice === 'right' && !realIsLeft);
+    }
+    const originalIsLeft = !currentPair.swapped;
+    return (selectedChoice === 'left' && originalIsLeft) || (selectedChoice === 'right' && !originalIsLeft);
+  };
+  
+  const handleQuizAnswer = (answer) => {
+    setQuizAnswer(answer);
+    setShowQuizResult(true);
+    if (answer === quizQuestions[currentQuizIndex].correct) {
+      setScore(prev => prev + POINTS.quiz);
     }
   };
   
-  // Handle werewolf vote
+  const handleQuizNext = () => {
+    if (currentQuizIndex < quizQuestions.length - 1) {
+      setCurrentQuizIndex(prev => prev + 1);
+      setQuizAnswer(null);
+      setShowQuizResult(false);
+    } else {
+      updatePlayerScore(gameCode, userId, score);
+    }
+  };
+  
   const handleWerewolfVote = (playerId) => {
-    setSelectedVote(playerId);
-    setWerewolfVotes(prev => ({ ...prev, [userId]: playerId }));
-    submitToGame(gameCode, {
-      type: 'werewolf-vote',
-      playerId: userId,
-      votedFor: playerId,
-      timestamp: Date.now()
-    });
+    if (werewolfVote) return;
+    setWerewolfVote(playerId);
+    submitVote(gameCode, userId, playerId);
+    if (playerId === impostorPlayerId) {
+      setScore(prev => prev + POINTS.werewolfDetective);
+      updatePlayerScore(gameCode, userId, score + POINTS.werewolfDetective);
+    }
   };
   
   // ============================================
-  // RENDER FUNCTIONS FOR EACH PHASE
+  // RENDER PHASES
   // ============================================
   
   const renderLobby = () => (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] flex items-center justify-center p-6">
-      <FloatingParticles count={30} />
-      
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-6">
+      <FloatingParticles count={20} />
       <div className="max-w-2xl w-full text-center relative z-10">
-        <div className="text-8xl mb-6 animate-bounce">🔍</div>
+        <div className="text-7xl mb-6">🔍</div>
+        <h1 className="text-5xl font-black text-white mb-2">SPOT THE</h1>
+        <h2 className="text-4xl font-black text-red-500 mb-6">FAKE</h2>
         
-        <h1 className="text-5xl md:text-6xl font-black text-white mb-4 tracking-tight">
-          <GlitchText>SPOT THE FAKE</GlitchText>
-        </h1>
+        <div className="bg-slate-800 rounded-2xl p-8 mb-8 border border-slate-700">
+          <div className="font-mono text-4xl font-black text-cyan-400 tracking-widest mb-2">{gameCode}</div>
+          <p className="text-slate-500 text-sm">Share this code</p>
+        </div>
         
-        <p className="text-xl text-white/70 mb-8">
-          Can you tell real from AI? Train your eyes to detect digital deception.
-        </p>
-        
-        <div className="bg-white/10 backdrop-blur-md rounded-3xl p-8 mb-8">
-          <div className="text-6xl font-mono font-black text-[#48a89a] tracking-widest mb-4">
-            {gameCode}
+        <div className="bg-slate-800/50 rounded-xl p-4 mb-6 border border-slate-700">
+          <h3 className="text-white font-bold mb-3">🎮 Game Rounds</h3>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="bg-cyan-500/20 text-cyan-400 p-2 rounded">1. Real vs AI</div>
+            <div className="bg-purple-500/20 text-purple-400 p-2 rounded">2. Spot the Edit</div>
+            <div className="bg-amber-500/20 text-amber-400 p-2 rounded">3. Ethics</div>
+            <div className="bg-red-500/20 text-red-400 p-2 rounded">4. Legal</div>
+            <div className="bg-pink-500/20 text-pink-400 p-2 rounded col-span-2">5. 🕵️ Werewolf Finale</div>
           </div>
-          <p className="text-white/60">Share this code with players to join</p>
         </div>
         
         <div className="mb-8">
-          <h3 className="text-xl font-bold text-white mb-4">Players Joined:</h3>
-          <div className="flex flex-wrap justify-center gap-3">
-            {Object.values(room?.players || {}).map((player, i) => (
-              <RevealCard key={player.id} delay={i * 100}>
-                <div className="bg-gradient-to-br from-[#48a89a] to-[#3d8a7e] text-white px-4 py-2 rounded-full font-medium shadow-lg">
-                  {player.name}
-                </div>
-              </RevealCard>
+          <p className="text-slate-500 mb-3">Players: {Object.keys(room?.players || {}).length}</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {Object.values(room?.players || {}).map(p => (
+              <span key={p.id} className="bg-cyan-500/20 text-cyan-400 px-3 py-1 rounded-full text-sm">{p.name}</span>
             ))}
           </div>
         </div>
         
         {isHost && (
-          <div className="flex gap-4 justify-center">
-            <Button 
-              onClick={() => updateGamePhase(gameCode, 'intro')}
-              className="bg-gradient-to-r from-[#d4a84b] to-[#c49a3a] hover:from-[#e8c36a] hover:to-[#d4a84b] text-white px-8 py-4 text-xl font-bold rounded-xl shadow-lg shadow-[#d4a84b]/30 transform hover:scale-105 transition-all"
-            >
-              🚀 Start Game
-            </Button>
-            <Button 
-              onClick={onOpenDashboard}
-              className="bg-white/20 hover:bg-white/30 text-white px-6 py-4 rounded-xl"
-            >
-              📊 Dashboard
-            </Button>
-          </div>
-        )}
-        
-        {!isHost && (
-          <div className="text-white/50 text-lg">
-            ⏳ Waiting for host to start the game...
+          <div className="space-y-4">
+            <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+              <label className="block text-slate-400 text-sm mb-2">Timer per image</label>
+              <div className="flex gap-2 justify-center">
+                {[15, 20, 30, 45, 60].map(t => (
+                  <button key={t} onClick={() => setTimerSetting(t)}
+                    className={`px-4 py-2 rounded-lg font-bold ${timerSetting === t ? 'bg-cyan-500 text-white' : 'bg-slate-700 text-slate-300'}`}>{t}s</button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-4 justify-center">
+              <Button onClick={() => updateGamePhase(gameCode, 'intro', { timerSeconds: timerSetting })} className="bg-cyan-600 text-white px-8 py-3 font-bold rounded-xl">Start Game</Button>
+              <Button onClick={onOpenDashboard} className="bg-slate-700 text-white px-6 py-3 rounded-xl">Dashboard</Button>
+            </div>
           </div>
         )}
       </div>
@@ -575,670 +416,367 @@ const SpotTheFake = ({ gameCode, room, userId, isHost, onBack, onOpenDashboard }
   );
   
   const renderIntro = () => (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] p-6 overflow-y-auto">
-      <FloatingParticles count={20} />
-      
-      <div className="max-w-4xl mx-auto relative z-10 py-8">
-        <RevealCard>
-          <div className="text-center mb-12">
-            <div className="text-6xl mb-4">🎯</div>
-            <h1 className="text-4xl md:text-5xl font-black text-white mb-4">
-              WELCOME TO <span className="text-[#48a89a]">SPOT THE FAKE</span>
-            </h1>
-            <p className="text-xl text-white/70">
-              AI-generated images are everywhere. Can you tell what's real?
-            </p>
-          </div>
-        </RevealCard>
-        
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
-          <RevealCard delay={200}>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 h-full border border-white/10">
-              <div className="text-4xl mb-4">📈</div>
-              <h3 className="text-xl font-bold text-white mb-2">The AI Image Explosion</h3>
-              <ul className="text-white/70 space-y-2">
-                <li>• Over 15 billion AI images created in 2023</li>
-                <li>• 900% increase in AI-generated content year-over-year</li>
-                <li>• Most people can only identify AI images 50% of the time</li>
-              </ul>
-            </div>
-          </RevealCard>
-          
-          <RevealCard delay={400}>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 h-full border border-white/10">
-              <div className="text-4xl mb-4">🔍</div>
-              <h3 className="text-xl font-bold text-white mb-2">What You'll Learn</h3>
-              <ul className="text-white/70 space-y-2">
-                <li>• How to spot AI-generated faces and landscapes</li>
-                <li>• Common artifacts and tells in AI images</li>
-                <li>• Real-world examples of AI misinformation</li>
-                <li>• Ethical implications of synthetic media</li>
-              </ul>
-            </div>
-          </RevealCard>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-6">
+      <FloatingParticles />
+      <div className="max-w-3xl w-full relative z-10 space-y-6">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🔍</div>
+          <h1 className="text-4xl font-black text-white mb-2">THE AGE OF AI IMAGES</h1>
         </div>
-        
-        <RevealCard delay={600}>
-          <div className="bg-gradient-to-r from-[#d4a84b]/20 to-[#48a89a]/20 rounded-2xl p-8 border border-[#d4a84b]/30 text-center">
-            <h3 className="text-2xl font-bold text-white mb-4">🎮 How to Play</h3>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div>
-                <div className="text-5xl mb-3">👁️</div>
-                <div className="text-white font-medium">Round 1: Real vs AI</div>
-                <div className="text-white/60 text-sm">Identify AI-generated images</div>
-              </div>
-              <div>
-                <div className="text-5xl mb-3">✂️</div>
-                <div className="text-white font-medium">Round 2: Edited or Not</div>
-                <div className="text-white/60 text-sm">Spot manipulated photos</div>
-              </div>
-              <div>
-                <div className="text-5xl mb-3">🐺</div>
-                <div className="text-white font-medium">Finale: AI Werewolf</div>
-                <div className="text-white/60 text-sm">Find the faker among you</div>
-              </div>
-            </div>
+        <ByteHost message={<div><p className="mb-2">Welcome! I'm BYTE. Today we train your eyes to spot AI-generated images.</p><p className="text-amber-400 font-medium">This is a critical skill in today's world!</p></div>} mood="teaching" />
+        <div className="bg-slate-800/80 rounded-2xl p-6 border border-slate-700">
+          <h3 className="text-white font-bold text-lg mb-4">📊 Did you know?</h3>
+          <div className="grid md:grid-cols-2 gap-4">
+            {educationalContent.introduction.keyStats.map((stat, i) => (
+              <div key={i} className="bg-slate-900/50 rounded-xl p-4"><p className="text-cyan-400 text-sm">{stat}</p></div>
+            ))}
           </div>
-        </RevealCard>
-        
+        </div>
         {isHost && (
-          <RevealCard delay={800}>
-            <div className="text-center mt-8">
-              <Button 
-                onClick={() => updateGamePhase(gameCode, 'round1')}
-                className="bg-gradient-to-r from-[#48a89a] to-[#3d8a7e] hover:from-[#5bc0a8] hover:to-[#48a89a] text-white px-12 py-4 text-xl font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all"
-              >
-                Begin Round 1 →
-              </Button>
-            </div>
-          </RevealCard>
+          <div className="text-center">
+            <Button onClick={() => updateGamePhase(gameCode, 'round1-play', { timerSeconds: timerSetting })} className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-12 py-4 text-xl font-bold rounded-xl">Begin Round 1 →</Button>
+          </div>
         )}
       </div>
     </div>
   );
   
-  const renderRound1 = () => {
-    const currentImage = images[currentIndex];
-    if (!currentImage) return <div className="text-white">Loading images...</div>;
+  const renderRoundPlay = () => {
+    if (roundComplete) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-6">
+          <FloatingParticles count={30} />
+          <div className="max-w-2xl w-full text-center relative z-10 space-y-6">
+            <div className="text-7xl mb-4">🎉</div>
+            <h1 className="text-4xl font-black text-white">ROUND {currentRound} COMPLETE!</h1>
+            <div className="bg-slate-800 rounded-2xl p-8 border border-slate-700">
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="bg-amber-500/20 rounded-xl p-4"><div className="text-3xl font-black text-amber-400">{score}</div><div className="text-slate-400 text-sm">Points</div></div>
+                <div className="bg-emerald-500/20 rounded-xl p-4"><div className="text-3xl font-black text-emerald-400">{correctCount}/{pairs.length}</div><div className="text-slate-400 text-sm">Correct</div></div>
+                <div className="bg-purple-500/20 rounded-xl p-4"><div className="text-3xl font-black text-purple-400">{pairs.length > 0 ? Math.round((correctCount/pairs.length)*100) : 0}%</div><div className="text-slate-400 text-sm">Accuracy</div></div>
+              </div>
+              <ByteHost message={correctCount >= pairs.length * 0.8 ? "Excellent! Sharp eye!" : "Good job! Keep practicing!"} mood={correctCount >= pairs.length * 0.6 ? 'proud' : 'teaching'} />
+            </div>
+            {isHost && (
+              <Button onClick={() => updateGamePhase(gameCode, isRound1 ? 'round1-debrief' : 'round2-debrief')} className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-12 py-4 text-xl font-bold rounded-xl">Continue →</Button>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    if (!currentPair) {
+      return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="text-white text-xl">Loading images...</div></div>;
+    }
+    
+    // Determine images based on round type
+    let leftImage, rightImage;
+    if (isRound1) {
+      if (currentPair.swapped) {
+        leftImage = currentPair.aiDemo?.url || currentPair.ai?.url;
+        rightImage = currentPair.real.url;
+      } else {
+        leftImage = currentPair.real.url;
+        rightImage = currentPair.aiDemo?.url || currentPair.ai?.url;
+      }
+    } else {
+      if (currentPair.swapped) {
+        leftImage = currentPair.edited?.url;
+        rightImage = currentPair.original?.url;
+      } else {
+        leftImage = currentPair.original?.url;
+        rightImage = currentPair.edited?.url;
+      }
+    }
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] p-6">
-        <Scanlines />
-        {showConfetti && <FloatingParticles count={50} />}
-        
-        <div className="max-w-4xl mx-auto relative z-10">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h2 className="text-3xl font-black text-white">
-                ROUND 1: <span className="text-[#48a89a]">Real or AI?</span>
-              </h2>
-              <div className="flex items-center gap-4 mt-2">
-                <span className="text-white/60">Image {currentIndex + 1} of {images.length}</span>
-                {streak > 1 && (
-                  <span className="bg-[#d4a84b] text-white px-3 py-1 rounded-full text-sm font-bold animate-pulse">
-                    🔥 {streak} streak!
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-black text-[#d4a84b]">{localScore}</div>
-              <div className="text-white/60 text-sm">points</div>
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 md:p-6">
+        <FloatingParticles count={10} />
+        <div className="max-w-6xl mx-auto relative z-10">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <h1 className="text-2xl font-black text-white">ROUND {currentRound}: {isRound1 ? 'REAL VS AI' : 'SPOT THE EDIT'}</h1>
+            <ScoreDisplay score={score} streak={streak} />
           </div>
           
-          {/* Progress bar */}
-          <AnimatedProgressBar 
-            current={currentIndex + 1} 
-            total={images.length} 
-            label="Progress"
-          />
-          
-          {/* Image card */}
-          <div className={`mt-6 relative ${isShaking ? 'animate-shake' : ''}`}>
-            <div 
-              className="bg-white/10 backdrop-blur-sm rounded-3xl p-4 cursor-zoom-in"
-              onClick={() => setZoomImage(currentImage.url)}
-            >
-              <img 
-                src={currentImage.url}
-                alt="Test image"
-                className="w-full aspect-video object-cover rounded-2xl shadow-2xl"
-              />
-              
-              {showResult && (
-                <div className={`absolute inset-0 flex items-center justify-center bg-black/70 rounded-3xl ${
-                  selectedAnswer === (currentImage.isAI ? 'ai' : 'real') 
-                    ? '' 
-                    : ''
-                }`}>
-                  <div className="text-center p-6">
-                    <div className="text-7xl mb-4">
-                      {selectedAnswer === (currentImage.isAI ? 'ai' : 'real') ? '✅' : '❌'}
-                    </div>
-                    <div className="text-3xl font-black text-white mb-2">
-                      {selectedAnswer === (currentImage.isAI ? 'ai' : 'real') ? 'CORRECT!' : 'WRONG!'}
-                    </div>
-                    <div className="text-white/80 mb-4">
-                      This image is <span className="font-bold text-[#48a89a]">{currentImage.isAI ? 'AI-GENERATED' : 'REAL'}</span>
-                    </div>
-                    <div className="text-white/60 text-sm max-w-md mx-auto">
-                      {currentImage.explanation}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* Hint button */}
-            {!showResult && (
-              <button 
-                onClick={() => setShowHint(!showHint)}
-                className="absolute top-6 right-6 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm transition-all"
-              >
-                {showHint ? '🙈 Hide Hint' : '💡 Show Hint'}
-              </button>
-            )}
-            
-            {showHint && !showResult && (
-              <div className="absolute bottom-6 left-6 right-6 bg-[#d4a84b]/90 text-white p-4 rounded-xl text-sm font-medium backdrop-blur-sm">
-                💡 {currentImage.hint}
-              </div>
-            )}
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <BigTimer seconds={timeLeft} totalSeconds={totalTime} />
+            <RoundProgress current={currentPairIndex + 1} total={pairs.length} round={`Round ${currentRound}`} />
           </div>
           
-          {/* Answer buttons */}
-          {!showResult ? (
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              <Button 
-                onClick={() => handleAnswer('real')}
-                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white py-6 text-2xl font-black rounded-2xl shadow-lg shadow-green-500/30 transform hover:scale-105 transition-all"
-              >
-                📷 REAL
-              </Button>
-              <Button 
-                onClick={() => handleAnswer('ai')}
-                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white py-6 text-2xl font-black rounded-2xl shadow-lg shadow-red-500/30 transform hover:scale-105 transition-all"
-              >
-                🤖 AI
-              </Button>
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-white">🤔 {isRound1 ? 'Which is REAL?' : 'Which is ORIGINAL?'}</h2>
+          </div>
+          
+          {!showTip ? (
+            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              <ImageChoice image={leftImage} label="Image A" onClick={() => handleChoice('left')} selected={selectedChoice === 'left'} disabled={showResult || showTip} result={getResult('left')} />
+              <ImageChoice image={rightImage} label="Image B" onClick={() => handleChoice('right')} selected={selectedChoice === 'right'} disabled={showResult || showTip} result={getResult('right')} />
             </div>
           ) : (
-            <div className="mt-6 text-center">
-              {currentIndex < images.length - 1 ? (
-                <Button 
-                  onClick={handleNext}
-                  className="bg-gradient-to-r from-[#48a89a] to-[#3d8a7e] text-white px-12 py-4 text-xl font-bold rounded-xl"
-                >
-                  Next Image →
-                </Button>
-              ) : isHost ? (
-                <Button 
-                  onClick={() => updateGamePhase(gameCode, 'round1-debrief')}
-                  className="bg-gradient-to-r from-[#d4a84b] to-[#c49a3a] text-white px-12 py-4 text-xl font-bold rounded-xl"
-                >
-                  View Results →
-                </Button>
-              ) : (
-                <p className="text-white/60 text-lg">Waiting for host to continue...</p>
-              )}
+            <div className="max-w-2xl mx-auto">
+              <LearningTipCard tip={currentPair.tip} isCorrect={isCorrectAnswer()} onContinue={handleContinue} />
             </div>
           )}
         </div>
-        
-        {/* Zoom modal */}
-        {zoomImage && (
-          <div 
-            className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-            onClick={() => setZoomImage(null)}
-          >
-            <img 
-              src={zoomImage}
-              alt="Zoomed"
-              className="max-w-full max-h-full object-contain rounded-lg"
-            />
-            <button 
-              className="absolute top-6 right-6 text-white text-2xl hover:text-[#48a89a]"
-              onClick={() => setZoomImage(null)}
-            >
-              ✕
-            </button>
-          </div>
-        )}
-        
-        <style jsx>{`
-          @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-            20%, 40%, 60%, 80% { transform: translateX(5px); }
-          }
-          .animate-shake { animation: shake 0.5s ease-in-out; }
-        `}</style>
       </div>
     );
   };
   
   const renderDebrief = () => {
-    const roundNum = room?.phase === 'round1-debrief' ? 1 : 2;
-    
+    const prompts = getDiscussionPrompts(isRound1 ? 'round1' : 'round2');
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] p-6 overflow-y-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 overflow-y-auto">
         <FloatingParticles count={15} />
-        
-        <div className="max-w-4xl mx-auto relative z-10 py-8">
-          <RevealCard>
-            <div className="text-center mb-12">
-              <div className="text-7xl mb-4">🎉</div>
-              <h1 className="text-4xl md:text-5xl font-black text-white mb-4">
-                ROUND {roundNum} <span className="text-[#d4a84b]">COMPLETE!</span>
-              </h1>
-              <p className="text-xl text-white/70">
-                Let's look at some real-world examples of AI deception
-              </p>
-            </div>
-          </RevealCard>
-          
-          {/* Example carousel */}
-          <RevealCard delay={200}>
-            <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-6 mb-8">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold text-white">
-                  📚 Case Study {currentExample + 1} of {enhancedExamples.length}
-                </h3>
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => setCurrentExample(e => Math.max(0, e - 1))}
-                    disabled={currentExample === 0}
-                    className="bg-white/20 hover:bg-white/30 disabled:opacity-30"
-                  >
-                    ←
-                  </Button>
-                  <Button 
-                    onClick={() => setCurrentExample(e => Math.min(enhancedExamples.length - 1, e + 1))}
-                    disabled={currentExample === enhancedExamples.length - 1}
-                    className="bg-white/20 hover:bg-white/30 disabled:opacity-30"
-                  >
-                    →
-                  </Button>
-                </div>
+        <div className="max-w-3xl mx-auto py-8 relative z-10 space-y-6">
+          <div className="text-center"><h1 className="text-3xl font-black text-white mb-2">💬 DISCUSSION</h1></div>
+          <ByteHost message="Take a few minutes to discuss. There are no wrong answers!" mood="teaching" />
+          <div className="space-y-4">
+            {prompts.map((q, i) => (
+              <div key={i} className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+                <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold">{i + 1}</div><p className="text-white text-lg">{q}</p></div>
               </div>
-              
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <img 
-                    src={enhancedExamples[currentExample].image}
-                    alt={enhancedExamples[currentExample].title}
-                    className="w-full aspect-video object-cover rounded-xl shadow-lg"
-                  />
-                  <p className="text-white/50 text-sm mt-2 text-center italic">
-                    {enhancedExamples[currentExample].imageCaption}
-                  </p>
-                </div>
-                
-                <div className="space-y-4">
-                  <h4 className="text-xl font-bold text-[#48a89a]">
-                    {enhancedExamples[currentExample].title}
-                  </h4>
-                  <p className="text-white/80">
-                    {enhancedExamples[currentExample].description}
-                  </p>
-                  <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4">
-                    <div className="text-red-400 font-bold mb-1">⚠️ Impact:</div>
-                    <div className="text-white/70 text-sm">
-                      {enhancedExamples[currentExample].impact}
-                    </div>
-                  </div>
-                  <div className="bg-green-500/20 border border-green-500/30 rounded-xl p-4">
-                    <div className="text-green-400 font-bold mb-1">🔍 How to Detect:</div>
-                    <ul className="text-white/70 text-sm space-y-1">
-                      {enhancedExamples[currentExample].tips.map((tip, i) => (
-                        <li key={i}>• {tip}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </RevealCard>
-          
-          {/* Progress dots */}
-          <div className="flex justify-center gap-2 mb-8">
-            {enhancedExamples.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentExample(i)}
-                className={`w-3 h-3 rounded-full transition-all ${
-                  i === currentExample 
-                    ? 'bg-[#48a89a] w-8' 
-                    : 'bg-white/30 hover:bg-white/50'
-                }`}
-              />
             ))}
           </div>
-          
           {isHost && (
-            <RevealCard delay={400}>
-              <div className="text-center">
-                <Button 
-                  onClick={() => updateGamePhase(gameCode, roundNum === 1 ? 'round2' : 'ethics')}
-                  className="bg-gradient-to-r from-[#48a89a] to-[#3d8a7e] text-white px-12 py-4 text-xl font-bold rounded-xl"
-                >
-                  {roundNum === 1 ? 'Start Round 2 →' : 'Continue to Ethics →'}
-                </Button>
-              </div>
-            </RevealCard>
+            <div className="text-center">
+              <Button onClick={() => updateGamePhase(gameCode, phase === 'round1-debrief' ? 'round2-intro' : 'ethics')} className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-12 py-4 text-xl font-bold rounded-xl">{phase === 'round1-debrief' ? 'Start Round 2 →' : 'Ethics Discussion →'}</Button>
+            </div>
           )}
         </div>
       </div>
     );
   };
   
-  const renderEthics = () => (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] p-6 overflow-y-auto">
-      <FloatingParticles count={15} />
-      
-      <div className="max-w-4xl mx-auto relative z-10 py-8">
-        <RevealCard>
-          <div className="text-center mb-12">
-            <div className="text-6xl mb-4">⚖️</div>
-            <h1 className="text-4xl md:text-5xl font-black text-white mb-4">
-              THE <span className="text-[#d4a84b]">ETHICS</span> OF AI IMAGES
-            </h1>
-            <p className="text-xl text-white/70">
-              Let's discuss the moral implications of synthetic media
-            </p>
-          </div>
-        </RevealCard>
-        
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <RevealCard delay={200}>
-            <div className="bg-gradient-to-br from-red-500/20 to-red-600/20 border border-red-500/30 rounded-2xl p-6 h-full">
-              <div className="text-3xl mb-3">🚫</div>
-              <h3 className="text-xl font-bold text-white mb-3">Harmful Uses</h3>
-              <ul className="text-white/70 space-y-2">
-                <li>• Spreading misinformation and propaganda</li>
-                <li>• Identity theft and fraud</li>
-                <li>• Creating non-consensual content</li>
-                <li>• Manipulating public opinion</li>
-                <li>• Undermining trust in authentic media</li>
-              </ul>
-            </div>
-          </RevealCard>
-          
-          <RevealCard delay={400}>
-            <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 border border-green-500/30 rounded-2xl p-6 h-full">
-              <div className="text-3xl mb-3">✅</div>
-              <h3 className="text-xl font-bold text-white mb-3">Beneficial Uses</h3>
-              <ul className="text-white/70 space-y-2">
-                <li>• Art and creative expression</li>
-                <li>• Education and training simulations</li>
-                <li>• Accessibility (visual descriptions)</li>
-                <li>• Entertainment and storytelling</li>
-                <li>• Medical and scientific visualization</li>
-              </ul>
-            </div>
-          </RevealCard>
+  const renderRound2Intro = () => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-6">
+      <FloatingParticles />
+      <div className="max-w-3xl w-full relative z-10 space-y-6">
+        <div className="text-center">
+          <div className="text-6xl mb-4">✂️</div>
+          <h1 className="text-4xl font-black text-white mb-2">ROUND 2: SPOT THE EDIT</h1>
+          <p className="text-slate-400 text-lg">Can you find the manipulated photo?</p>
         </div>
-        
-        <RevealCard delay={600}>
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-8">
-            <h3 className="text-xl font-bold text-white mb-4">💬 Discussion Questions</h3>
-            <div className="space-y-4">
-              <div className="bg-white/5 rounded-xl p-4">
-                <p className="text-white/90">1. Should AI-generated images always be labeled as such?</p>
-              </div>
-              <div className="bg-white/5 rounded-xl p-4">
-                <p className="text-white/90">2. Who should be responsible when AI images cause harm?</p>
-              </div>
-              <div className="bg-white/5 rounded-xl p-4">
-                <p className="text-white/90">3. How can we preserve trust in visual media?</p>
-              </div>
-            </div>
-          </div>
-        </RevealCard>
-        
-        {isHost && (
-          <RevealCard delay={800}>
-            <div className="text-center">
-              <Button 
-                onClick={() => updateGamePhase(gameCode, 'legal')}
-                className="bg-gradient-to-r from-[#48a89a] to-[#3d8a7e] text-white px-12 py-4 text-xl font-bold rounded-xl"
-              >
-                Continue to Legal Landscape →
-              </Button>
-            </div>
-          </RevealCard>
-        )}
-      </div>
-    </div>
-  );
-  
-  const renderLegal = () => (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] p-6 overflow-y-auto">
-      <FloatingParticles count={15} />
-      
-      <div className="max-w-4xl mx-auto relative z-10 py-8">
-        <RevealCard>
-          <div className="text-center mb-12">
-            <div className="text-6xl mb-4">📜</div>
-            <h1 className="text-4xl md:text-5xl font-black text-white mb-4">
-              THE <span className="text-[#48a89a]">LEGAL</span> LANDSCAPE
-            </h1>
-            <p className="text-xl text-white/70">
-              Laws are evolving to address AI-generated content
-            </p>
-          </div>
-        </RevealCard>
-        
-        <div className="space-y-6 mb-8">
-          <RevealCard delay={200}>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
-              <div className="flex items-start gap-4">
-                <div className="text-4xl">🇺🇸</div>
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-2">United States</h3>
-                  <p className="text-white/70">
-                    Multiple states have passed laws requiring disclosure of AI-generated content in political ads. 
-                    Federal legislation is being considered for broader AI content labeling requirements.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </RevealCard>
-          
-          <RevealCard delay={400}>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
-              <div className="flex items-start gap-4">
-                <div className="text-4xl">🇪🇺</div>
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-2">European Union</h3>
-                  <p className="text-white/70">
-                    The EU AI Act requires clear labeling of AI-generated content and establishes strict rules 
-                    for high-risk AI applications, including synthetic media.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </RevealCard>
-          
-          <RevealCard delay={600}>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
-              <div className="flex items-start gap-4">
-                <div className="text-4xl">🌐</div>
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-2">Global Trends</h3>
-                  <p className="text-white/70">
-                    Countries worldwide are developing frameworks to address AI misuse. Key trends include 
-                    mandatory watermarking, platform liability, and right to privacy protections.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </RevealCard>
-        </div>
-        
-        {isHost && (
-          <RevealCard delay={800}>
-            <div className="text-center">
-              <Button 
-                onClick={() => updateGamePhase(gameCode, 'werewolf')}
-                className="bg-gradient-to-r from-[#d4a84b] to-[#c49a3a] text-white px-12 py-4 text-xl font-bold rounded-xl"
-              >
-                🐺 Start AI Werewolf Finale →
-              </Button>
-            </div>
-          </RevealCard>
-        )}
-      </div>
-    </div>
-  );
-  
-  const renderWerewolf = () => (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] p-6 flex items-center justify-center">
-      <FloatingParticles count={25} />
-      
-      <div className="max-w-2xl w-full text-center relative z-10">
-        <RevealCard>
-          <div className="text-8xl mb-6 animate-bounce">🐺</div>
-          <h1 className="text-4xl md:text-5xl font-black text-white mb-4">
-            <GlitchText>AI WEREWOLF</GlitchText>
-          </h1>
-          <p className="text-xl text-white/70 mb-8">
-            One player has an AI-generated profile. Can you find them?
-          </p>
-        </RevealCard>
-        
-        {werewolfAssignment && (
-          <RevealCard delay={300}>
-            <div className={`rounded-3xl p-8 mb-8 ${
-              werewolfAssignment.isAI 
-                ? 'bg-gradient-to-br from-red-500/30 to-red-600/30 border-2 border-red-500'
-                : 'bg-gradient-to-br from-green-500/30 to-green-600/30 border-2 border-green-500'
-            }`}>
-              <h3 className="text-2xl font-bold text-white mb-4">Your Secret Role</h3>
-              
-              <img 
-                src={werewolfAssignment.image.url}
-                alt="Your profile"
-                className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-white shadow-xl mb-4"
-              />
-              
-              <p className="text-white text-lg mb-4">
-                {werewolfAssignment.instruction}
-              </p>
-              
-              <div className={`inline-block px-4 py-2 rounded-full text-sm font-bold ${
-                werewolfAssignment.isAI 
-                  ? 'bg-red-500 text-white'
-                  : 'bg-green-500 text-white'
-              }`}>
-                {werewolfAssignment.isAI ? '🤖 YOU ARE THE AI FAKER' : '👤 YOUR IMAGE IS REAL'}
-              </div>
-            </div>
-          </RevealCard>
-        )}
-        
-        <RevealCard delay={600}>
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-8">
-            <h3 className="text-xl font-bold text-white mb-4">📋 Rules</h3>
-            <ul className="text-white/70 text-left space-y-2">
-              <li>• Each player will show their profile image</li>
-              <li>• Ask questions to determine who has the AI image</li>
-              <li>• The AI faker must convince others their image is real</li>
-              <li>• After discussion, everyone votes</li>
-              <li>• If you find the faker, the village wins!</li>
-            </ul>
-          </div>
-        </RevealCard>
-        
-        {isHost && (
-          <RevealCard delay={900}>
-            <Button 
-              onClick={() => updateGamePhase(gameCode, 'werewolf-vote')}
-              className="bg-gradient-to-r from-[#d4a84b] to-[#c49a3a] text-white px-12 py-4 text-xl font-bold rounded-xl"
-            >
-              Start Voting Phase →
-            </Button>
-          </RevealCard>
-        )}
-      </div>
-    </div>
-  );
-  
-  const renderWerewolfVote = () => {
-    const players = Object.values(room?.players || {});
-    
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] p-6">
-        <FloatingParticles count={20} />
-        
-        <div className="max-w-4xl mx-auto relative z-10 py-8">
-          <RevealCard>
-            <div className="text-center mb-8">
-              <div className="text-6xl mb-4">🗳️</div>
-              <h1 className="text-4xl font-black text-white mb-2">
-                VOTE FOR THE <span className="text-red-500">FAKER</span>
-              </h1>
-              <p className="text-white/70">
-                Who do you think has the AI-generated profile?
-              </p>
-            </div>
-          </RevealCard>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            {players.map((player, i) => (
-              <RevealCard key={player.id} delay={i * 100}>
-                <button
-                  onClick={() => handleWerewolfVote(player.id)}
-                  disabled={selectedVote !== null}
-                  className={`w-full p-4 rounded-2xl transition-all duration-300 ${
-                    selectedVote === player.id
-                      ? 'bg-gradient-to-br from-red-500 to-red-600 border-4 border-white scale-105'
-                      : 'bg-white/10 hover:bg-white/20 border-2 border-white/20 hover:border-white/40'
-                  } ${selectedVote !== null && selectedVote !== player.id ? 'opacity-50' : ''}`}
-                >
-                  <div className="text-4xl mb-2">
-                    {selectedVote === player.id ? '🎯' : '👤'}
-                  </div>
-                  <div className="text-white font-bold truncate">{player.name}</div>
-                  {player.id === userId && (
-                    <div className="text-xs text-white/50 mt-1">(You)</div>
-                  )}
-                </button>
-              </RevealCard>
+        <ByteHost message={<div><p className="mb-2">Nice work on Round 1! Now things get trickier.</p><p>Both images start from the same real photo, but <strong className="text-red-400">ONE has been edited</strong>.</p><p className="mt-2 text-amber-400">Pick the ORIGINAL, unedited version!</p></div>} mood="teaching" />
+        <div className="bg-slate-800/80 rounded-2xl p-6 border border-slate-700">
+          <h3 className="text-white font-bold text-lg mb-4">Types of Edits:</h3>
+          <div className="grid md:grid-cols-3 gap-4">
+            {[{ icon: '✨', title: 'Face Smoothing', desc: 'Skin too perfect' }, { icon: '🌊', title: 'Body Reshaping', desc: 'Warped backgrounds' }, { icon: '🌈', title: 'Color Changes', desc: 'Over-saturated' }].map((e, i) => (
+              <div key={i} className="text-center bg-slate-900/50 rounded-xl p-4"><div className="text-3xl mb-2">{e.icon}</div><div className="text-white font-bold text-sm">{e.title}</div><div className="text-slate-400 text-xs">{e.desc}</div></div>
             ))}
           </div>
-          
-          {selectedVote && (
-            <RevealCard delay={500}>
-              <div className="text-center mb-8">
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 inline-block">
-                  <p className="text-white text-lg">
-                    You voted for <span className="font-bold text-[#d4a84b]">
-                      {players.find(p => p.id === selectedVote)?.name}
-                    </span>
-                  </p>
-                  <p className="text-white/60 text-sm mt-2">
-                    Waiting for other players to vote...
-                  </p>
+        </div>
+        {isHost && (
+          <div className="text-center">
+            <Button onClick={() => updateGamePhase(gameCode, 'round2-play', { timerSeconds: timerSetting })} className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-12 py-4 text-xl font-bold rounded-xl">Start Round 2 →</Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+  
+  const renderEthics = () => {
+    const ethicsContent = educationalContent.ethics;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 overflow-y-auto">
+        <FloatingParticles count={15} />
+        <div className="max-w-3xl mx-auto py-8 relative z-10 space-y-6">
+          <div className="text-center"><div className="text-6xl mb-4">⚖️</div><h1 className="text-3xl font-black text-white mb-2">{ethicsContent.title}</h1></div>
+          <ByteHost message="AI images aren't inherently good or bad - it's about how they're used." mood="teaching" />
+          <div className="space-y-6">
+            {ethicsContent.questions.map((q, i) => (
+              <div key={i} className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+                <div className="flex items-center gap-3 mb-4"><div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold">{i + 1}</div><h3 className="text-xl font-bold text-white">{q.question}</h3></div>
+                {q.scenarios && <div className="space-y-2 mt-4">{q.scenarios.map((s, j) => (
+                  <div key={j} className={`p-3 rounded-lg text-sm ${s.startsWith('✅') ? 'bg-emerald-500/20 text-emerald-300' : s.startsWith('⚠️') ? 'bg-amber-500/20 text-amber-300' : s.startsWith('❌') ? 'bg-red-500/20 text-red-300' : 'bg-slate-700 text-slate-300'}`}>{s}</div>
+                ))}</div>}
+              </div>
+            ))}
+          </div>
+          {isHost && (<div className="text-center"><Button onClick={() => updateGamePhase(gameCode, 'legal')} className="bg-gradient-to-r from-amber-600 to-orange-600 text-white px-12 py-4 text-xl font-bold rounded-xl">Legal Implications →</Button></div>)}
+        </div>
+      </div>
+    );
+  };
+  
+  const renderLegal = () => {
+    const legalContent = educationalContent.legal;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 overflow-y-auto">
+        <FloatingParticles count={15} />
+        <div className="max-w-3xl mx-auto py-8 relative z-10 space-y-6">
+          <div className="text-center"><div className="text-6xl mb-4">📜</div><h1 className="text-3xl font-black text-white mb-2">{legalContent.title}</h1></div>
+          <ByteHost message="Laws are rapidly evolving. Here's what you need to know." mood="warning" />
+          <div className="space-y-4">
+            {legalContent.categories.map((cat, i) => (
+              <div key={i} className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-bold text-white">{cat.area}</h3>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${cat.status.includes('Illegal') ? 'bg-red-500/30 text-red-300' : cat.status.includes('Restricted') ? 'bg-amber-500/30 text-amber-300' : 'bg-blue-500/30 text-blue-300'}`}>{cat.status}</span>
                 </div>
+                <p className="text-slate-400 text-sm mb-3">{cat.details}</p>
+                <p className="text-red-400 text-xs">⚖️ {cat.penalties}</p>
               </div>
-            </RevealCard>
+            ))}
+          </div>
+          <div className="bg-amber-500/20 rounded-2xl p-6 border border-amber-500/30">
+            <h3 className="text-amber-400 font-bold mb-3">📋 Pending Legislation</h3>
+            <ul className="space-y-2">{legalContent.pendingLegislation.map((law, i) => <li key={i} className="text-slate-300 text-sm flex items-center gap-2"><span className="text-amber-400">→</span> {law}</li>)}</ul>
+          </div>
+          {isHost && (<div className="text-center"><Button onClick={() => updateGamePhase(gameCode, 'werewolf-intro')} className="bg-gradient-to-r from-pink-600 to-purple-600 text-white px-12 py-4 text-xl font-bold rounded-xl">🕵️ Werewolf Finale →</Button></div>)}
+        </div>
+      </div>
+    );
+  };
+  
+  const renderWerewolfIntro = () => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-6">
+      <FloatingParticles count={30} />
+      <div className="max-w-3xl w-full text-center relative z-10 space-y-6">
+        <div className="text-8xl mb-4">🕵️</div>
+        <h1 className="text-4xl font-black text-white mb-2">THE WEREWOLF FINALE</h1>
+        <h2 className="text-2xl text-purple-400">Find the AI Impostor!</h2>
+        <ByteHost message={<div><p className="mb-2">Each player gets an image. <strong className="text-red-400">ONE has an AI image</strong> - they're the impostor!</p></div>} mood="detective" />
+        <div className="bg-slate-800/80 rounded-2xl p-6 border border-purple-500/30">
+          <h3 className="text-white font-bold mb-4">🎮 How It Works</h3>
+          <div className="space-y-3 text-left">
+            <div className="flex items-center gap-3 text-slate-300"><span className="bg-purple-500 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold">1</span> Each player gets a secret image</div>
+            <div className="flex items-center gap-3 text-slate-300"><span className="bg-purple-500 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold">2</span> One player gets an AI image!</div>
+            <div className="flex items-center gap-3 text-slate-300"><span className="bg-purple-500 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold">3</span> Everyone shows their image and discusses</div>
+            <div className="flex items-center gap-3 text-slate-300"><span className="bg-purple-500 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold">4</span> Vote on who has the AI image!</div>
+          </div>
+        </div>
+        <div className="bg-amber-500/20 rounded-2xl p-6 border border-amber-500/30">
+          <h3 className="text-amber-400 font-bold mb-2">🏆 Scoring</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="text-slate-300"><span className="text-amber-400 font-bold">+{POINTS.werewolfDetective}</span> correctly identify impostor</div>
+            <div className="text-slate-300"><span className="text-amber-400 font-bold">+{POINTS.werewolfImpostor}</span> impostor escapes detection</div>
+          </div>
+        </div>
+        {isHost && (<div className="text-center"><Button onClick={() => updateGamePhase(gameCode, 'werewolf-assign')} className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-12 py-4 text-xl font-bold rounded-xl">🎭 Assign Roles →</Button></div>)}
+      </div>
+    </div>
+  );
+  
+  const renderWerewolfAssign = () => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-6">
+      <FloatingParticles count={20} />
+      <div className="max-w-xl w-full relative z-10">
+        <div className={`rounded-3xl p-8 text-center ${isImpostor ? 'bg-gradient-to-br from-red-600 to-orange-600' : 'bg-gradient-to-br from-emerald-600 to-teal-600'}`}>
+          <div className="text-8xl mb-4">{isImpostor ? '🤖' : '👤'}</div>
+          <h2 className="text-3xl font-black text-white mb-2">{isImpostor ? 'THE IMPOSTOR!' : 'HUMAN'}</h2>
+          <p className="text-white/80 mb-4">{isImpostor ? `You have the AI image! If no one guesses you, +${POINTS.werewolfImpostor} points!` : "You have a real photo. Find the impostor!"}</p>
+          {assignedImage && (
+            <div className="bg-white/10 rounded-xl p-4">
+              <p className="text-white/60 text-sm mb-2">Your image:</p>
+              <img src={assignedImage} alt="Your image" className="w-40 h-40 object-cover rounded-lg mx-auto" />
+            </div>
           )}
-          
-          {isHost && (
-            <RevealCard delay={700}>
-              <div className="text-center">
-                <Button 
-                  onClick={() => updateGamePhase(gameCode, 'results')}
-                  className="bg-gradient-to-r from-[#48a89a] to-[#3d8a7e] text-white px-12 py-4 text-xl font-bold rounded-xl"
-                >
-                  Reveal Results →
-                </Button>
+        </div>
+        <div className="mt-6 text-center">
+          <p className="text-purple-400 text-sm mb-4">{isImpostor ? "🤫 Don't let anyone know!" : "👀 Study images carefully!"}</p>
+          {isHost && (<Button onClick={() => updateGamePhase(gameCode, 'werewolf-reveal')} className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-12 py-4 font-bold rounded-xl">👁️ Reveal All Images →</Button>)}
+        </div>
+      </div>
+    </div>
+  );
+  
+  const renderWerewolfReveal = () => {
+    const players = Object.values(room?.players || {});
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+        <FloatingParticles count={20} />
+        <div className="max-w-4xl mx-auto py-8 relative z-10">
+          <div className="text-center mb-8"><h1 className="text-3xl font-black text-white mb-2">👁️ REVEAL TIME</h1><p className="text-purple-400">Show images! Discuss!</p></div>
+          <ByteHost message="Look carefully! AI struggles with hands, text, and hair boundaries." mood="detective" />
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 my-8">
+            {players.map(p => (
+              <div key={p.id} className="bg-slate-800 rounded-xl p-4 text-center border border-purple-500/30">
+                <div className="text-white font-bold mb-2">{p.name}</div>
+                <div className="text-slate-500 text-sm">Showing image...</div>
               </div>
-            </RevealCard>
+            ))}
+          </div>
+          {isHost && (<div className="text-center"><Button onClick={() => updateGamePhase(gameCode, 'werewolf-vote')} className="bg-gradient-to-r from-red-600 to-orange-600 text-white px-12 py-4 font-bold rounded-xl">🗳️ Begin Voting (60s) →</Button></div>)}
+        </div>
+      </div>
+    );
+  };
+  
+  const renderWerewolfVote = () => {
+    const players = Object.values(room?.players || {}).filter(p => p.id !== userId);
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 p-6">
+        <FloatingParticles count={20} />
+        <div className="max-w-2xl mx-auto py-8 relative z-10">
+          <div className="text-center mb-6"><h1 className="text-3xl font-black text-white mb-2">🗳️ VOTE NOW!</h1></div>
+          <BigTimer seconds={werewolfTimer} totalSeconds={60} label="🕐 VOTING ENDS IN" />
+          <div className="mt-6">
+            <h3 className="text-white font-bold mb-4 text-center">Who has the AI image?</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {players.map(p => (
+                <button key={p.id} onClick={() => handleWerewolfVote(p.id)} disabled={!!werewolfVote}
+                  className={`p-4 rounded-xl transition-all ${werewolfVote === p.id ? 'bg-cyan-500 text-white' : 'bg-slate-700 text-white hover:bg-slate-600'} ${werewolfVote ? 'opacity-50' : ''}`}>
+                  <div className="text-2xl mb-1">👤</div>
+                  <div className="font-bold">{p.name}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+          {werewolfVote && <div className="mt-6 text-center"><p className="text-emerald-400">✓ Vote submitted!</p></div>}
+          {isHost && (<div className="text-center mt-8"><Button onClick={() => updateGamePhase(gameCode, 'werewolf-results')} className="bg-gradient-to-r from-amber-600 to-orange-600 text-white px-8 py-3 font-bold rounded-xl">Reveal Results →</Button></div>)}
+        </div>
+      </div>
+    );
+  };
+  
+  const renderWerewolfResults = () => {
+    const impostor = Object.values(room?.players || {}).find(p => p.id === impostorPlayerId);
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-6">
+        <FloatingParticles count={30} />
+        <div className="max-w-2xl w-full text-center relative z-10 space-y-6">
+          <div className="text-8xl mb-4">🎭</div>
+          <h1 className="text-4xl font-black text-white">THE IMPOSTOR WAS...</h1>
+          <div className="bg-red-500/20 rounded-3xl p-8 border border-red-500/30">
+            <p className="text-6xl mb-4">🤖</p>
+            <p className="text-2xl font-bold text-red-400">{impostor?.name || 'Unknown'}</p>
+            <p className="text-slate-400 mt-2">They had the AI-generated image!</p>
+          </div>
+          <ByteHost message="Great detective work! These skills apply to everything you see online." mood="proud" />
+          {isHost && (<Button onClick={() => updateGamePhase(gameCode, 'quiz')} className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-12 py-4 font-bold rounded-xl">📝 Final Quiz →</Button>)}
+        </div>
+      </div>
+    );
+  };
+  
+  const renderQuiz = () => {
+    if (quizQuestions.length === 0) return null;
+    const currentQ = quizQuestions[currentQuizIndex];
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+        <FloatingParticles count={15} />
+        <div className="max-w-2xl mx-auto py-8 relative z-10 space-y-6">
+          <div className="text-center"><h1 className="text-3xl font-black text-white mb-2">📝 FINAL QUIZ</h1><p className="text-slate-400">Question {currentQuizIndex + 1}/{quizQuestions.length}</p></div>
+          <RoundProgress current={currentQuizIndex + 1} total={quizQuestions.length} round="Quiz" />
+          <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+            <h3 className="text-xl font-bold text-white mb-4">{currentQ.question}</h3>
+            <div className="space-y-3">
+              {currentQ.options.map((opt, i) => (
+                <button key={i} onClick={() => !showQuizResult && handleQuizAnswer(i)} disabled={showQuizResult}
+                  className={`w-full p-4 rounded-xl text-left transition-colors ${showQuizResult && i === currentQ.correct ? 'bg-emerald-500 text-white' : showQuizResult && quizAnswer === i ? 'bg-red-500 text-white' : quizAnswer === i ? 'bg-cyan-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+          {showQuizResult && (
+            <div className={`rounded-xl p-4 ${quizAnswer === currentQ.correct ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+              <p className={`font-bold ${quizAnswer === currentQ.correct ? 'text-emerald-400' : 'text-red-400'}`}>{quizAnswer === currentQ.correct ? '✓ Correct!' : '✗ Incorrect'}</p>
+              <p className="text-slate-300 text-sm mt-1">{currentQ.explanation}</p>
+            </div>
           )}
+          {showQuizResult && (<Button onClick={handleQuizNext} className="w-full bg-cyan-600 text-white py-3 rounded-xl font-bold">{currentQuizIndex < quizQuestions.length - 1 ? 'Next →' : 'See Results →'}</Button>)}
+          {isHost && currentQuizIndex >= quizQuestions.length - 1 && showQuizResult && (<Button onClick={() => updateGamePhase(gameCode, 'results')} className="w-full bg-gradient-to-r from-amber-600 to-orange-600 text-white py-4 rounded-xl font-bold">🏆 Final Results</Button>)}
         </div>
       </div>
     );
@@ -1246,92 +784,44 @@ const SpotTheFake = ({ gameCode, room, userId, isHost, onBack, onOpenDashboard }
   
   const renderResults = () => {
     const players = Object.values(room?.players || {}).sort((a, b) => (b.score || 0) - (a.score || 0));
-    
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] p-6 overflow-y-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 overflow-y-auto">
         <FloatingParticles count={40} />
-        
-        <div className="max-w-3xl mx-auto relative z-10 py-8">
-          <RevealCard>
-            <div className="text-center mb-12">
-              <div className="text-8xl mb-4">🏆</div>
-              <h1 className="text-5xl font-black text-white mb-4">
-                <GlitchText>FINAL RESULTS</GlitchText>
-              </h1>
-            </div>
-          </RevealCard>
-          
-          <div className="space-y-4 mb-12">
-            {players.slice(0, 10).map((player, i) => (
-              <RevealCard key={player.id} delay={i * 150}>
-                <div className={`flex items-center justify-between p-6 rounded-2xl ${
-                  i === 0 
-                    ? 'bg-gradient-to-r from-[#d4a84b] via-[#e8c36a] to-[#d4a84b] text-white shadow-lg shadow-[#d4a84b]/30'
-                    : i === 1
-                      ? 'bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 text-gray-800'
-                      : i === 2
-                        ? 'bg-gradient-to-r from-orange-300 via-orange-200 to-orange-300 text-orange-900'
-                        : 'bg-white/10 text-white'
-                }`}>
-                  <div className="flex items-center gap-4">
-                    <span className="text-4xl">
-                      {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}
-                    </span>
-                    <span className="text-2xl font-bold">{player.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-3xl font-black">{player.score || 0}</div>
-                    <div className="text-sm opacity-70">points</div>
-                  </div>
-                </div>
-              </RevealCard>
+        <div className="max-w-2xl mx-auto py-8 relative z-10">
+          <div className="text-center mb-8"><div className="text-7xl mb-4">🏆</div><h1 className="text-4xl font-black text-white mb-2">FINAL RESULTS</h1></div>
+          <div className="space-y-3 mb-8">
+            {players.map((p, i) => (
+              <div key={p.id} className={`flex items-center justify-between p-4 rounded-xl ${i === 0 ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white' : i === 1 ? 'bg-slate-300 text-slate-800' : i === 2 ? 'bg-orange-200 text-orange-900' : 'bg-slate-800 text-white'}`}>
+                <div className="flex items-center gap-3"><span className="text-2xl font-black">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`}</span><span className="font-bold">{p.name}</span></div>
+                <span className="text-2xl font-black">{p.score || 0}</span>
+              </div>
             ))}
           </div>
-          
-          <RevealCard delay={1500}>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 text-center mb-8">
-              <h3 className="text-2xl font-bold text-white mb-4">🎓 Key Takeaways</h3>
-              <div className="text-white/70 text-left space-y-3 max-w-xl mx-auto">
-                <p>✓ Always question suspicious images, especially viral ones</p>
-                <p>✓ Look for AI tells: hands, text, backgrounds, consistency</p>
-                <p>✓ Verify with multiple sources before sharing</p>
-                <p>✓ Consider the ethical implications of AI content</p>
-                <p>✓ Stay informed about evolving AI detection tools</p>
-              </div>
-            </div>
-          </RevealCard>
-          
-          <RevealCard delay={1800}>
-            <div className="text-center">
-              <Button 
-                onClick={onBack}
-                className="bg-gradient-to-r from-[#48a89a] to-[#3d8a7e] text-white px-12 py-4 text-xl font-bold rounded-xl"
-              >
-                🏠 Back to Home
-              </Button>
-            </div>
-          </RevealCard>
+          <ByteHost message={<div><p className="mb-2">Congratulations! You've learned:</p><ul className="text-sm text-slate-300 space-y-1"><li>• How to detect AI images</li><li>• Ethical considerations</li><li>• Legal implications</li><li>• Media literacy</li></ul></div>} mood="proud" />
+          <div className="text-center mt-8"><Button onClick={onBack} className="bg-cyan-600 text-white px-8 py-3 font-bold rounded-xl">Back to Home</Button></div>
         </div>
       </div>
     );
   };
   
-  // ============================================
-  // MAIN RENDER
-  // ============================================
-  
+  // Main render
   const renderPhase = () => {
-    switch (room?.phase) {
+    switch (phase) {
       case 'lobby': return renderLobby();
       case 'intro': return renderIntro();
-      case 'round1': return renderRound1();
+      case 'round1-play': return renderRoundPlay();
       case 'round1-debrief': return renderDebrief();
-      case 'round2': return renderRound1(); // Reuse round1 UI
+      case 'round2-intro': return renderRound2Intro();
+      case 'round2-play': return renderRoundPlay();
       case 'round2-debrief': return renderDebrief();
       case 'ethics': return renderEthics();
       case 'legal': return renderLegal();
-      case 'werewolf': return renderWerewolf();
+      case 'werewolf-intro': return renderWerewolfIntro();
+      case 'werewolf-assign': return renderWerewolfAssign();
+      case 'werewolf-reveal': return renderWerewolfReveal();
       case 'werewolf-vote': return renderWerewolfVote();
+      case 'werewolf-results': return renderWerewolfResults();
+      case 'quiz': return renderQuiz();
       case 'results': return renderResults();
       default: return renderLobby();
     }
@@ -1340,24 +830,7 @@ const SpotTheFake = ({ gameCode, room, userId, isHost, onBack, onOpenDashboard }
   return (
     <div className="relative">
       {renderPhase()}
-      
-      {/* Back button */}
-      <button 
-        onClick={onBack}
-        className="fixed top-4 left-4 z-50 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full font-medium transition-all"
-      >
-        ← Exit Game
-      </button>
-      
-      {/* Dashboard button for host */}
-      {isHost && (
-        <button 
-          onClick={onOpenDashboard}
-          className="fixed top-4 right-4 z-50 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full font-medium transition-all"
-        >
-          📊 Dashboard
-        </button>
-      )}
+      <button onClick={onBack} className="fixed top-4 left-4 z-50 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-full text-sm font-medium border border-slate-700">Exit</button>
     </div>
   );
 };

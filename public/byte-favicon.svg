@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Background -->
+  <rect width="48" height="48" fill="#1e293b" rx="8"/>
+  <!-- BYTE body -->
+  <rect x="10" y="10" width="28" height="28" fill="#00D4FF" rx="4"/>
+  <!-- Eyes -->
+  <rect x="15" y="17" width="5" height="5" fill="#0a0a0a"/>
+  <rect x="28" y="17" width="5" height="5" fill="#0a0a0a"/>
+  <!-- Mouth -->
+  <rect x="17" y="27" width="14" height="4" fill="#0a0a0a"/>
+  <!-- Arms -->
+  <rect x="5" y="21" width="4" height="6" fill="#00D4FF"/>
+  <rect x="39" y="21" width="4" height="6" fill="#00D4FF"/>
+</svg>

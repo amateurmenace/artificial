@@ -1,65 +1,216 @@
-// AI Services - OpenAI Integration
-// Enhanced with critique, editing suggestions, and comprehensive assistance
+// AI Services - Multi-Provider Support with Per-Game Model Selection
+// Updated December 2025: Best models for vibe coding
 
-const OPENAI_API_URL = 'https://api.openai.com/v1';
+// ============================================
+// DEFAULT API KEY (provided by facilitator)
+// ============================================
+const DEFAULT_GEMINI_KEY = 'REDACTED_GEMINI_KEY';
 
-let openaiApiKey = null;
+// ============================================
+// PROVIDER CONFIGURATION (March 2026)
+// ============================================
+
+export const AI_PROVIDERS = {
+  openai: {
+    name: 'OpenAI',
+    chatModel: 'gpt-5-mini',
+    imageModel: 'dall-e-3',
+    apiUrl: 'https://api.openai.com/v1',
+    description: 'GPT-5 Mini (Best for vibe coding)',
+    requiresKey: true,
+    keyPlaceholder: 'sk-...',
+    keyLink: 'https://platform.openai.com/api-keys',
+    supportsChat: true,
+    supportsImage: true
+  },
+  anthropic: {
+    name: 'Claude (Anthropic)',
+    chatModel: 'claude-sonnet-4-5-20250929',
+    imageModel: null,
+    apiUrl: 'https://api.anthropic.com/v1',
+    description: 'Claude Sonnet 4.5',
+    requiresKey: true,
+    keyPlaceholder: 'sk-ant-...',
+    keyLink: 'https://console.anthropic.com/settings/keys',
+    supportsChat: true,
+    supportsImage: false
+  },
+  gemini: {
+    name: 'Google Gemini',
+    chatModel: 'gemini-3-flash-preview',
+    imageModel: 'gemini-2.5-flash-image',
+    apiUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    description: 'Gemini 3 Flash (Best for vibe coding!) + Nano Banana images',
+    requiresKey: false,  // Default key provided
+    keyPlaceholder: 'AI...',
+    keyLink: 'https://aistudio.google.com/apikey',
+    supportsChat: true,
+    supportsImage: true
+  },
+  groq: {
+    name: 'Groq (Free & Fast)',
+    chatModel: 'llama-3.3-70b-versatile',
+    imageModel: null,
+    apiUrl: 'https://api.groq.com/openai/v1',
+    description: 'Llama 3.3 70B',
+    requiresKey: true,
+    keyPlaceholder: 'gsk_...',
+    keyLink: 'https://console.groq.com/keys',
+    supportsChat: true,
+    supportsImage: false
+  },
+  ollama: {
+    name: 'Ollama (Local)',
+    chatModel: 'llama3.2',
+    imageModel: null,
+    apiUrl: 'http://localhost:11434/api',
+    description: 'Run locally',
+    requiresKey: false,
+    keyPlaceholder: '',
+    keyLink: 'https://ollama.ai',
+    supportsChat: true,
+    supportsImage: false
+  }
+};
+
+// ============================================
+// PER-GAME MODEL SELECTION
+// ============================================
+
+const DEFAULT_GAME_MODELS = {
+  spotTheFake: { chat: 'gemini', image: null },
+  memeMachine: { chat: 'gemini', image: 'gemini' },  // Nano Banana for image gen
+  vibeCode: { chat: 'gemini', image: null }  // Gemini 3 Flash is best for vibe coding!
+};
+
+export const getGameModels = () => {
+  const stored = localStorage.getItem('game_models');
+  return stored ? JSON.parse(stored) : DEFAULT_GAME_MODELS;
+};
+
+export const setGameModel = (game, type, provider) => {
+  const models = getGameModels();
+  if (!models[game]) models[game] = {};
+  models[game][type] = provider;
+  localStorage.setItem('game_models', JSON.stringify(models));
+};
+
+export const getProviderForGame = (game, type = 'chat') => {
+  const models = getGameModels();
+  return models[game]?.[type] || (type === 'chat' ? 'gemini' : 'openai');
+};
+
+// ============================================
+// STATE MANAGEMENT
+// ============================================
+
+let currentProvider = null;
+let apiKey = null;
+
+export const setProvider = (providerId) => {
+  if (!AI_PROVIDERS[providerId]) throw new Error(`Unknown provider: ${providerId}`);
+  currentProvider = providerId;
+  localStorage.setItem('ai_provider', providerId);
+  apiKey = localStorage.getItem(`ai_key_${providerId}`);
+};
+
+export const getProvider = () => {
+  if (!currentProvider) currentProvider = localStorage.getItem('ai_provider') || 'gemini';
+  return currentProvider;
+};
+
+export const getProviderConfig = () => AI_PROVIDERS[getProvider()];
 
 export const setApiKey = (key) => {
-  openaiApiKey = key;
-  localStorage.setItem('openai_api_key', key);
+  apiKey = key;
+  localStorage.setItem(`ai_key_${getProvider()}`, key);
 };
 
-export const getApiKey = () => {
-  if (!openaiApiKey) {
-    openaiApiKey = localStorage.getItem('openai_api_key');
+export const getApiKey = (providerId) => {
+  const provider = providerId || getProvider();
+  const storedKey = localStorage.getItem(`ai_key_${provider}`) || (provider === getProvider() ? apiKey : null);
+  // Fall back to default Gemini key if no user key is set
+  if (!storedKey && (provider === 'gemini' || provider === 'gemini_pro')) {
+    return DEFAULT_GEMINI_KEY;
   }
-  return openaiApiKey;
+  return storedKey;
 };
 
-export const hasApiKey = () => !!getApiKey();
+export const hasApiKey = (providerId) => {
+  const provider = providerId || getProvider();
+  const config = AI_PROVIDERS[provider];
+  if (!config?.requiresKey) return true;
+  return !!getApiKey(provider);
+};
 
-// Base chat completion
-export const chatCompletion = async (messages, options = {}) => {
-  const key = getApiKey();
-  if (!key) throw new Error('OpenAI API key not set');
+export const clearCredentials = () => {
+  localStorage.removeItem(`ai_key_${getProvider()}`);
+  apiKey = null;
+};
+
+// ============================================
+// OPENAI IMPLEMENTATION
+// ============================================
+
+const openaiChat = async (messages, options = {}) => {
+  const key = getApiKey('openai');
+  if (!key) throw new Error('OpenAI API key not configured');
   
-  const response = await fetch(`${OPENAI_API_URL}/chat/completions`, {
+  const config = AI_PROVIDERS.openai;
+  const model = options.model || config.chatModel;
+  
+  console.log(`[OpenAI] Calling ${model} with ${messages.length} messages, maxTokens: ${options.maxTokens || 16384}`);
+  
+  const response = await fetch(`${config.apiUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${key}`
     },
     body: JSON.stringify({
-      model: options.model || 'gpt-4o-mini',
+      model: model,
       messages: messages,
-      max_tokens: options.maxTokens || 1000,
+      max_tokens: options.maxTokens || 16384,
       temperature: options.temperature || 0.7
     })
   });
   
+  const data = await response.json();
+  
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'Failed to get completion');
+    console.error('[OpenAI] Error response:', data);
+    throw new Error(data.error?.message || `OpenAI request failed: ${response.status}`);
   }
   
-  const data = await response.json();
-  return data.choices[0].message.content;
+  console.log(`[OpenAI] Response received, finish_reason: ${data.choices?.[0]?.finish_reason}`);
+  
+  const content = data.choices?.[0]?.message?.content;
+  
+  if (!content) {
+    console.error('[OpenAI] Empty content in response:', JSON.stringify(data, null, 2));
+    throw new Error('OpenAI returned empty response. Check console for details.');
+  }
+  
+  console.log(`[OpenAI] Content length: ${content.length} chars`);
+  return content;
 };
 
-// DALL-E Image Generation
-export const generateImage = async (prompt, size = '1024x1024') => {
-  const key = getApiKey();
-  if (!key) throw new Error('OpenAI API key not set');
+const openaiImage = async (prompt, size = '1024x1024') => {
+  const key = getApiKey('openai');
+  if (!key) throw new Error('OpenAI API key not configured');
   
-  const response = await fetch(`${OPENAI_API_URL}/images/generations`, {
+  const config = AI_PROVIDERS.openai;
+  
+  console.log(`[OpenAI Image] Generating with ${config.imageModel}`);
+  
+  const response = await fetch(`${config.apiUrl}/images/generations`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${key}`
     },
     body: JSON.stringify({
-      model: 'dall-e-3',
+      model: config.imageModel,
       prompt: prompt,
       n: 1,
       size: size,
@@ -67,650 +218,787 @@ export const generateImage = async (prompt, size = '1024x1024') => {
     })
   });
   
+  const data = await response.json();
+  
+  if (!response.ok) {
+    console.error('[OpenAI Image] Error:', data);
+    throw new Error(data.error?.message || 'Image generation failed');
+  }
+  
+  // Handle both URL and base64 responses
+  if (data.data[0].b64_json) {
+    return { url: `data:image/png;base64,${data.data[0].b64_json}`, revisedPrompt: data.data[0].revised_prompt };
+  }
+  return { url: data.data[0].url, revisedPrompt: data.data[0].revised_prompt };
+};
+
+// ============================================
+// CLAUDE (ANTHROPIC) IMPLEMENTATION
+// ============================================
+
+const claudeChat = async (messages, options = {}) => {
+  const key = getApiKey('anthropic');
+  if (!key) throw new Error('Anthropic API key not configured');
+  
+  const config = AI_PROVIDERS.anthropic;
+  
+  const systemMessage = messages.find(m => m.role === 'system');
+  const chatMessages = messages
+    .filter(m => m.role !== 'system')
+    .map(m => ({ role: m.role, content: m.content }));
+  
+  const requestBody = {
+    model: options.model || config.chatModel,
+    max_tokens: options.maxTokens || 8192,
+    messages: chatMessages
+  };
+  
+  if (systemMessage) {
+    requestBody.system = systemMessage.content;
+  }
+  
+  const response = await fetch(`${config.apiUrl}/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify(requestBody)
+  });
+  
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error?.message || 'Failed to generate image');
+    throw new Error(error.error?.message || 'Claude request failed');
   }
   
   const data = await response.json();
-  return {
-    url: data.data[0].url,
-    revisedPrompt: data.data[0].revised_prompt
+  return data.content[0].text;
+};
+
+// ============================================
+// GEMINI IMPLEMENTATION - FIXED
+// ============================================
+
+const geminiChat = async (messages, options = {}) => {
+  const providerId = options.providerId || 'gemini';
+  const key = getApiKey(providerId);
+  if (!key) throw new Error('Gemini API key not configured');
+  
+  const config = AI_PROVIDERS[providerId] || AI_PROVIDERS.gemini;
+  const model = options.model || config.chatModel;
+  
+  console.log(`[Gemini] Calling ${model} with ${messages.length} messages, maxTokens: ${options.maxTokens || 8192}`);
+  
+  const systemMessage = messages.find(m => m.role === 'system');
+  const chatMessages = messages
+    .filter(m => m.role !== 'system')
+    .map(msg => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }]
+    }));
+  
+  // Ensure we have at least one user message
+  if (chatMessages.length === 0) {
+    throw new Error('Gemini requires at least one user message');
+  }
+  
+  const requestBody = {
+    contents: chatMessages,
+    generationConfig: {
+      temperature: options.temperature || 1.0, // Gemini 3 recommends 1.0
+      maxOutputTokens: Math.min(options.maxTokens || 8192, 65536),
+      candidateCount: 1
+    },
+    // Relaxed safety settings for creative content
+    safetySettings: [
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" }
+    ]
   };
+  
+  // Add thinking level for Gemini 3 models (improves code generation)
+  if (model.includes('gemini-3')) {
+    requestBody.generationConfig.thinkingConfig = {
+      thinkingLevel: 'medium' // Balance between speed and quality
+    };
+    console.log('[Gemini] Using thinking level: medium');
+  }
+  
+  if (systemMessage) {
+    requestBody.systemInstruction = { parts: [{ text: systemMessage.content }] };
+  }
+  
+  const apiUrl = `${config.apiUrl}/models/${model}:generateContent?key=${key}`;
+  console.log('[Gemini] Request URL:', apiUrl.replace(key, 'API_KEY_HIDDEN'));
+  
+  const response = await fetch(apiUrl, { 
+    method: 'POST', 
+    headers: { 'Content-Type': 'application/json' }, 
+    body: JSON.stringify(requestBody) 
+  });
+  
+  const responseText = await response.text();
+  console.log('[Gemini] Raw response (first 500 chars):', responseText.substring(0, 500));
+  
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch (e) {
+    console.error('[Gemini] Failed to parse JSON:', responseText);
+    throw new Error('Gemini returned invalid JSON response');
+  }
+  
+  if (!response.ok) {
+    console.error('[Gemini] HTTP Error:', response.status, data);
+    throw new Error(data.error?.message || `Gemini request failed: ${response.status}`);
+  }
+  
+  // Check for blocked responses
+  if (data.promptFeedback?.blockReason) {
+    console.error('[Gemini] Blocked:', data.promptFeedback);
+    throw new Error(`Request blocked: ${data.promptFeedback.blockReason}`);
+  }
+  
+  // Check for candidates
+  if (!data.candidates || data.candidates.length === 0) {
+    console.error('[Gemini] No candidates. Full response:', JSON.stringify(data));
+    // Check if there's feedback about why
+    if (data.promptFeedback) {
+      throw new Error(`Gemini blocked the request: ${JSON.stringify(data.promptFeedback)}`);
+    }
+    throw new Error('Gemini returned no candidates. Try simplifying your prompt.');
+  }
+  
+  const candidate = data.candidates[0];
+  console.log('[Gemini] Finish reason:', candidate.finishReason);
+  
+  if (candidate.finishReason === 'SAFETY') {
+    console.error('[Gemini] Safety block. Ratings:', candidate.safetyRatings);
+    throw new Error('Response blocked by safety filters. Try a different prompt.');
+  }
+  
+  if (candidate.finishReason === 'RECITATION') {
+    throw new Error('Response blocked due to recitation policy.');
+  }
+  
+  // Try multiple ways to get the text
+  let content = null;
+  
+  // Standard format
+  if (candidate.content?.parts) {
+    content = candidate.content.parts
+      .filter(p => p.text)
+      .map(p => p.text)
+      .join('');
+  }
+  // Alternative formats
+  if (!content && candidate.text) {
+    content = candidate.text;
+  }
+  if (!content && typeof candidate.content === 'string') {
+    content = candidate.content;
+  }
+  
+  if (!content || content.trim().length === 0) {
+    console.error('[Gemini] Cannot extract text. Candidate:', JSON.stringify(candidate));
+    throw new Error('Gemini returned empty content. Try again or use a different provider.');
+  }
+  
+  console.log('[Gemini] Content length:', content.length);
+  return content;
+};
+
+// Gemini image generation using Nano Banana (gemini-2.5-flash-image)
+const geminiImage = async (prompt, size = '1024x1024') => {
+  const key = getApiKey('gemini') || getApiKey('gemini_pro');
+  if (!key) throw new Error('Gemini API key not configured');
+
+  const config = AI_PROVIDERS.gemini;
+  const imageModel = config.imageModel || 'gemini-2.5-flash-image';
+
+  console.log(`[Gemini Image] Generating with Nano Banana (${imageModel})`);
+
+  // Use native Gemini image generation (Nano Banana)
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:generateContent?key=${key}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: `Generate an image: ${prompt}` }]
+        }],
+        generationConfig: {
+          responseModalities: ["TEXT", "IMAGE"]
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error('[Gemini Image] Error:', response.status, errorData);
+    throw new Error(errorData.error?.message || `Nano Banana image generation failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  const imagePart = parts.find(p => p.inlineData);
+
+  if (imagePart?.inlineData) {
+    console.log('[Gemini Image] Image generated successfully');
+    return {
+      url: `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`,
+      revisedPrompt: prompt
+    };
+  }
+
+  // Check if there's text but no image
+  const textPart = parts.find(p => p.text);
+  if (textPart) {
+    console.error('[Gemini Image] Got text instead of image:', textPart.text.substring(0, 200));
+  }
+
+  throw new Error('No image generated by Nano Banana. Try a different prompt.');
+};
+
+// ============================================
+// GROQ IMPLEMENTATION
+// ============================================
+
+const groqChat = async (messages, options = {}) => {
+  const key = getApiKey('groq');
+  if (!key) throw new Error('Groq API key not configured');
+  
+  const config = AI_PROVIDERS.groq;
+  
+  const response = await fetch(`${config.apiUrl}/chat/completions`, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json', 
+      'Authorization': `Bearer ${key}` 
+    },
+    body: JSON.stringify({
+      model: options.model || config.chatModel,
+      messages: messages,
+      max_tokens: options.maxTokens || 8192,
+      temperature: options.temperature || 0.8
+    })
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Groq request failed');
+  }
+  
+  const data = await response.json();
+  return data.choices[0].message.content;
+};
+
+// ============================================
+// OLLAMA IMPLEMENTATION
+// ============================================
+
+const ollamaChat = async (messages, options = {}) => {
+  const config = AI_PROVIDERS.ollama;
+  
+  const prompt = messages.map(m => {
+    if (m.role === 'system') return `System: ${m.content}`;
+    if (m.role === 'user') return `User: ${m.content}`;
+    return `Assistant: ${m.content}`;
+  }).join('\n\n');
+  
+  const response = await fetch(`${config.apiUrl}/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: options.model || config.chatModel, prompt, stream: false })
+  });
+  
+  if (!response.ok) throw new Error('Ollama request failed - is Ollama running?');
+  const data = await response.json();
+  return data.response;
+};
+
+// ============================================
+// UNIFIED API
+// ============================================
+
+// Token limits per provider (output tokens) - conservative limits for reliability
+const PROVIDER_TOKEN_LIMITS = {
+  openai: 16384,
+  anthropic: 8192,
+  gemini: 65536,  // Gemini 3 Flash supports 65K output tokens
+  groq: 8192,
+  ollama: 4096
+};
+
+export const chatCompletion = async (messages, options = {}) => {
+  const provider = options.provider || getProvider();
+  
+  console.log(`[chatCompletion] Provider: ${provider}, requested maxTokens: ${options.maxTokens}`);
+  
+  // Cap maxTokens to provider limit
+  const providerLimit = PROVIDER_TOKEN_LIMITS[provider] || 4096;
+  const cappedOptions = {
+    ...options,
+    maxTokens: Math.min(options.maxTokens || 4096, providerLimit)
+  };
+  
+  console.log(`[chatCompletion] Capped maxTokens: ${cappedOptions.maxTokens}`);
+  
+  try {
+    switch (provider) {
+      case 'openai': return await openaiChat(messages, cappedOptions);
+      case 'anthropic': return await claudeChat(messages, cappedOptions);
+      case 'gemini': 
+      case 'gemini_pro': return await geminiChat(messages, { ...cappedOptions, providerId: provider });
+      case 'groq': return await groqChat(messages, cappedOptions);
+      case 'ollama': return await ollamaChat(messages, cappedOptions);
+      default: throw new Error(`Unknown provider: ${provider}`);
+    }
+  } catch (error) {
+    console.error(`[chatCompletion] ${provider} failed:`, error.message);
+    throw error;
+  }
+};
+
+export const generateImage = async (prompt, size = '1024x1024', preferredProvider) => {
+  // Use preferred provider or find one that supports images
+  let provider = preferredProvider || getProvider();
+  let config = AI_PROVIDERS[provider];
+  
+  // If current provider doesn't support images, find one that does
+  if (!config?.supportsImage) {
+    if (hasApiKey('openai')) {
+      provider = 'openai';
+      config = AI_PROVIDERS.openai;
+    } else if (hasApiKey('gemini')) {
+      provider = 'gemini';
+      config = AI_PROVIDERS.gemini;
+    } else {
+      throw new Error('No image-capable AI provider configured. Please set up OpenAI or Gemini API key.');
+    }
+  }
+  
+  switch (provider) {
+    case 'openai': return openaiImage(prompt, size);
+    case 'gemini':
+    case 'gemini_pro': return geminiImage(prompt, size);
+    default: throw new Error(`Image generation not supported for ${provider}. Use OpenAI or Gemini.`);
+  }
 };
 
 // ============================================
 // MEME MACHINE AI SERVICES
 // ============================================
 
-// Comprehensive meme critique
 export const critiqueMeme = async (imageDescription, caption, issue) => {
+  const provider = getProviderForGame('memeMachine', 'chat');
+  
   const messages = [
     {
       role: 'system',
-      content: `You are an expert in viral content, advocacy communications, and meme culture. Provide constructive critique on memes created for community advocacy.
+      content: `You are a viral content strategist and meme expert. Provide constructive, actionable critique.
 
-Your critique should cover:
-1. MESSAGE EFFECTIVENESS (1-10): Is the message clear? Will viewers understand the issue?
-2. EMOTIONAL IMPACT (1-10): Does it evoke the right emotions? Will people care?
-3. SHAREABILITY (1-10): Would you share this? Is it meme-worthy?
-4. TECHNICAL QUALITY (1-10): Is the composition good? Is text readable?
-5. ACCESSIBILITY (1-10): Can everyone understand it? Any exclusionary elements?
-6. POTENTIAL ISSUES: Any risks of misinterpretation, offense, or misinformation?
+SCORING (1-10 each):
+1. MESSAGE CLARITY - Is the point immediately understood?
+2. EMOTIONAL IMPACT - Does it create the right feeling?
+3. VIRAL POTENTIAL - Would people share this?
+4. VISUAL-TEXT HARMONY - Do image and caption work together?
+5. AUDIENCE FIT - Will the target audience connect?
 
-Format your response as JSON with these exact fields:
-{
-  "scores": {
-    "messageEffectiveness": X,
-    "emotionalImpact": X,
-    "shareability": X,
-    "technicalQuality": X,
-    "accessibility": X,
-    "overall": X
-  },
-  "strengths": ["...", "..."],
-  "improvements": ["...", "..."],
-  "concerns": ["..."] or [],
-  "revisedCaption": "suggested improved caption",
-  "imageEditSuggestions": ["...", "..."]
-}`
+Be encouraging but honest. Give specific suggestions, not vague feedback.
+Format with clear sections and scores. Keep it concise but helpful.`
     },
     {
       role: 'user',
-      content: `Please critique this advocacy meme:
+      content: `Critique this advocacy meme:
 
 ISSUE: ${issue}
+IMAGE CONCEPT: ${imageDescription}
 CAPTION: "${caption}"
-IMAGE DESCRIPTION: ${imageDescription}
 
-Provide your detailed critique in the JSON format specified.`
+Provide scores and 3 specific improvement suggestions.`
     }
   ];
   
-  const response = await chatCompletion(messages, { maxTokens: 1500 });
-  
-  try {
-    // Try to parse as JSON
-    const cleaned = response.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch {
-    // If parsing fails, return a structured response
-    return {
-      scores: { overall: 7 },
-      strengths: ["Creative approach"],
-      improvements: [response],
-      concerns: [],
-      revisedCaption: caption,
-      imageEditSuggestions: []
-    };
-  }
+  return await chatCompletion(messages, { maxTokens: 1500, provider });
 };
 
-// Generate multiple caption options
-export const generateCaptionOptions = async (issue, style = 'mixed') => {
+export const suggestMemeEdits = async (imageDescription, caption, issue, critiquePoints) => {
+  const provider = getProviderForGame('memeMachine', 'chat');
+  
   const messages = [
     {
       role: 'system',
-      content: `You are a creative meme caption writer specializing in advocacy content. Generate 5 different caption options with varying styles.`
+      content: `You are a meme optimization expert. Based on critique, suggest specific, actionable improvements.`
     },
     {
       role: 'user',
-      content: `Generate 5 meme captions about: ${issue}
+      content: `Improve this meme:
 
-Provide variety:
-1. Funny/humorous
-2. Emotional/heartfelt  
-3. Shocking/attention-grabbing
-4. Relatable/everyday
-5. Call-to-action focused
+CURRENT:
+- Issue: ${issue}
+- Image: ${imageDescription}
+- Caption: "${caption}"
 
-Format as JSON array:
-[
-  {"style": "funny", "caption": "...", "hashtags": ["...", "..."]},
-  ...
-]`
+FEEDBACK: ${critiquePoints}
+
+Provide:
+1. 3 alternative captions (different tones)
+2. 2 image adjustments
+3. 1 bold creative risk to consider`
     }
   ];
   
-  const response = await chatCompletion(messages);
-  
-  try {
-    const cleaned = response.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch {
-    return [{ style: 'general', caption: response, hashtags: [] }];
-  }
+  return await chatCompletion(messages, { maxTokens: 1200, provider });
 };
 
-// Generate image edit suggestions
-export const suggestImageEdits = async (currentDescription, critique, issue) => {
+export const generateMemeCaptions = async (imageDescription, issue, style = 'humorous') => {
+  const provider = getProviderForGame('memeMachine', 'chat');
+  
+  const styleGuides = {
+    humorous: 'witty, clever, uses wordplay or irony',
+    emotional: 'heartfelt, evocative, creates empathy',
+    provocative: 'bold, challenging, conversation-starting',
+    informative: 'clear, factual, shareable statistics'
+  };
+
   const messages = [
     {
       role: 'system',
-      content: `You are a visual design expert. Based on critique feedback, suggest specific, actionable image edits that would improve a meme's effectiveness.`
+      content: `You are a viral meme caption writer. Generate captions that are ${styleGuides[style] || styleGuides.humorous}.
+
+Each caption should:
+- Be punchy and memorable (under 15 words ideal)
+- Work with the visual concept
+- Be shareable and non-offensive
+- Include relevant hashtag ideas`
     },
     {
       role: 'user',
-      content: `Current image: ${currentDescription}
-Issue: ${issue}
-Critique feedback: ${JSON.stringify(critique)}
+      content: `Generate 5 ${style} captions for:
 
-Suggest 3-5 specific image edits or a new image concept. Format as JSON:
-{
-  "edits": [
-    {"type": "color", "suggestion": "..."},
-    {"type": "composition", "suggestion": "..."},
-    {"type": "text_placement", "suggestion": "..."}
-  ],
-  "alternativeImagePrompt": "A DALL-E prompt for a potentially better image"
-}`
+ISSUE: ${issue}
+IMAGE CONCEPT: ${imageDescription}
+
+Format each with the caption, why it works, and 2 hashtags.`
     }
   ];
   
-  const response = await chatCompletion(messages);
+  return await chatCompletion(messages, { maxTokens: 1000, provider });
+};
+
+export const generateMemeImagePrompt = async (issue, style, mood, visualConcept) => {
+  const provider = getProviderForGame('memeMachine', 'chat');
   
-  try {
-    const cleaned = response.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch {
-    return { edits: [], alternativeImagePrompt: '' };
-  }
+  const messages = [
+    {
+      role: 'system',
+      content: `You are an expert visual designer creating image prompts for advocacy memes.
+
+RULES:
+- NO text in the image (captions added separately)
+- Think editorial photography or conceptual art
+- Use visual metaphors over literal representations
+- Ensure it works at small sizes (social media thumbnails)
+- Avoid clichÃ©s and generic stock photo looks
+- Include: lighting, composition, color palette, mood, style`
+    },
+    {
+      role: 'user',
+      content: `Create a detailed image prompt for:
+
+ADVOCACY ISSUE: ${issue}
+VISUAL STYLE: ${style}
+EMOTIONAL TONE: ${mood}
+CONCEPT/IDEA: ${visualConcept}
+
+Create a single, detailed prompt that will generate a striking, meme-worthy image. No text in the image.`
+    }
+  ];
+  
+  const prompt = await chatCompletion(messages, { maxTokens: 600, provider });
+  return prompt;
+};
+
+export const brainstormMemeIdeas = async (issue, targetAudience) => {
+  const provider = getProviderForGame('memeMachine', 'chat');
+  
+  const messages = [
+    {
+      role: 'system',
+      content: `You are a viral content strategist specializing in advocacy and social media campaigns.
+
+Generate creative meme concepts that:
+- Connect emotionally with the target audience
+- Use relatable scenarios or pop culture references
+- Have viral potential through humor, surprise, or emotional resonance
+- Avoid being preachy or heavy-handed`
+    },
+    {
+      role: 'user',
+      content: `Generate 5 creative meme concepts for this advocacy campaign:
+
+ISSUE: ${issue}
+TARGET AUDIENCE: ${targetAudience}
+
+For each concept include:
+1. A catchy title/hook
+2. Visual description (what the image shows)
+3. Suggested caption tone (funny, emotional, shocking, etc.)
+4. Why it would resonate with the audience`
+    }
+  ];
+  
+  return await chatCompletion(messages, { maxTokens: 1500, provider });
 };
 
 // ============================================
 // VIBE CODE CHALLENGE AI SERVICES
 // ============================================
 
-// Step 1: Problem clarification assistant
-export const clarifyProblem = async (userProblem) => {
-  const messages = [
-    {
-      role: 'system',
-      content: `You help users clarify and refine their app ideas. Ask probing questions and help them think through their concept.`
-    },
-    {
-      role: 'user',
-      content: `I want to build an app that: ${userProblem}
-
-Help me clarify this by:
-1. Summarizing what you understand
-2. Asking 2-3 clarifying questions
-3. Suggesting how to narrow the scope for a 30-minute build`
-    }
-  ];
+export const generateInitialCode = async (appIdea, description, features) => {
+  const provider = getProviderForGame('vibeCode', 'chat');
   
-  return await chatCompletion(messages);
-};
-
-// Step 2: Feature brainstorming
-export const brainstormFeatures = async (problem, constraints) => {
-  const messages = [
-    {
-      role: 'system',
-      content: `You help users brainstorm app features, categorizing them by priority and feasibility for a quick build.`
-    },
-    {
-      role: 'user',
-      content: `Problem: ${problem}
-Constraints: ${constraints || 'Must be buildable in 30 minutes as a single HTML file'}
-
-Generate a feature list in JSON format:
-{
-  "mustHave": [{"feature": "...", "description": "...", "complexity": "low/medium"}],
-  "niceToHave": [{"feature": "...", "description": "...", "complexity": "..."}],
-  "futureIdeas": [{"feature": "...", "description": "..."}],
-  "technicalNotes": ["...", "..."]
-}`
-    }
-  ];
-  
-  const response = await chatCompletion(messages, { maxTokens: 1500 });
-  
-  try {
-    const cleaned = response.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch {
-    return { mustHave: [], niceToHave: [], futureIdeas: [], technicalNotes: [response] };
-  }
-};
-
-// Step 3: Generate initial code - ENHANCED for complex apps
-export const generateInitialCode = async (problem, features) => {
-  const messages = [
-    {
-      role: 'system',
-      content: `You are an expert web developer creating impressive, feature-rich apps. Generate sophisticated HTML/CSS/JS code that looks professional and has real functionality.
-
-REQUIREMENTS:
-- Single HTML file with embedded CSS and JS
-- MUST include smooth CSS animations and transitions
-- MUST include CSS gradients and shadows for depth
-- MUST have hover effects on interactive elements
-- Include localStorage for data persistence where appropriate
-- Add loading states and visual feedback for actions
-- Use CSS Grid or Flexbox for layouts
-- Include a color scheme with at least 4 harmonious colors
-- Add subtle micro-interactions (button ripples, form feedback, etc.)
-- Include error handling and validation where needed
-- Make it responsive with media queries
-- Add custom scrollbar styling
-- Include toast notifications or alerts for user feedback
-
-STYLING REQUIREMENTS:
-- Modern design with rounded corners (border-radius)
-- Card-based layouts with shadows
-- Gradient backgrounds or accents
-- Icon usage (use emoji as icons if needed)
-- Typography hierarchy (different font sizes/weights)
-- Proper spacing and padding
-- Dark/light color scheme option if appropriate
-
-JAVASCRIPT REQUIREMENTS:
-- Event listeners with visual feedback
-- DOM manipulation for dynamic content
-- Array methods for data handling
-- Template literals for HTML generation
-- Error handling with try/catch
-- Console logging for debugging
-
-Use this structure:
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>App Name</title>
-  <style>
-    /* Reset and base styles */
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    /* Custom properties / CSS variables */
-    :root {
-      --primary: #color;
-      --secondary: #color;
-      --accent: #color;
-      --background: #color;
-      --text: #color;
-      --shadow: 0 4px 6px rgba(0,0,0,0.1);
-      --radius: 12px;
-      --transition: all 0.3s ease;
-    }
-    
-    /* Animations */
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    
-    /* Your styles here with animations, gradients, shadows */
-  </style>
-</head>
-<body>
-  <!-- HTML structure here -->
-  <script>
-    // App initialization
-    document.addEventListener('DOMContentLoaded', () => {
-      // Your JavaScript here with proper structure
-    });
-  </script>
-</body>
-</html>`
-    },
-    {
-      role: 'user',
-      content: `Create an impressive, feature-rich app for:
-PROBLEM: ${problem}
-FEATURES: ${JSON.stringify(features)}
-
-Make it visually stunning with:
-- Animated entrance for elements
-- Gradient backgrounds or accents
-- Card layouts with shadows
-- Hover effects on all clickable items
-- Toast notifications for actions
-- LocalStorage for saving user data
-- At least 200 lines of well-organized code
-
-Generate the complete, working code that will impress users.`
-    }
-  ];
-  
-  return await chatCompletion(messages, { maxTokens: 4000, model: 'gpt-4o-mini' });
-};
-
-// Generate visual mockup description
-export const generateMockup = async (designAnswers) => {
-  const messages = [
-    {
-      role: 'system',
-      content: `You are a UI/UX designer creating detailed mockup descriptions. Describe the visual layout of an app in ASCII art and detailed text format.`
-    },
-    {
-      role: 'user',
-      content: `Create a visual mockup description for this app:
-
-Problem: ${designAnswers.problem}
-Solution: ${designAnswers.solutions}
-Technology: ${designAnswers.technology}
-Visual Style: ${designAnswers.vibe}
-Target Users: ${designAnswers.audience}
-Goals: ${designAnswers.goals}
-Core Features: ${designAnswers.mechanics}
-Unique Element: ${designAnswers.twist}
-
-Provide:
-1. ASCII art showing the basic layout (use box drawing characters)
-2. Color scheme (list 4-5 hex colors with their purpose)
-3. Component list with descriptions
-4. User flow description
-
-Format as JSON:
-{
-  "asciiMockup": "ASCII art here using ┌─┐│└┘ characters",
-  "colorScheme": [
-    {"color": "#hex", "name": "name", "usage": "what it's used for"}
-  ],
-  "components": [
-    {"name": "Header", "description": "what it contains", "position": "where it goes"}
-  ],
-  "userFlow": ["Step 1", "Step 2", "Step 3"]
-}`
-    }
-  ];
-  
-  const response = await chatCompletion(messages, { maxTokens: 2000 });
-  
-  try {
-    const cleaned = response.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch {
-    return {
-      asciiMockup: `
-┌────────────────────────────────────┐
-│           HEADER / LOGO            │
-├────────────────────────────────────┤
-│                                    │
-│         MAIN CONTENT AREA          │
-│                                    │
-│    ┌──────────┐  ┌──────────┐     │
-│    │  Card 1  │  │  Card 2  │     │
-│    └──────────┘  └──────────┘     │
-│                                    │
-├────────────────────────────────────┤
-│           ACTION BUTTONS           │
-└────────────────────────────────────┘`,
-      colorScheme: [
-        { color: '#3d5a4c', name: 'Primary', usage: 'Headers, buttons' },
-        { color: '#48a89a', name: 'Accent', usage: 'Highlights, links' },
-        { color: '#f5f3ef', name: 'Background', usage: 'Page background' },
-        { color: '#d4a84b', name: 'Warning', usage: 'Alerts, CTAs' }
-      ],
-      components: [
-        { name: 'Header', description: 'App title and navigation', position: 'Top' },
-        { name: 'Main Content', description: 'Primary interaction area', position: 'Center' },
-        { name: 'Footer', description: 'Actions and info', position: 'Bottom' }
-      ],
-      userFlow: ['Open app', 'View content', 'Take action', 'See result']
-    };
-  }
-};
-
-// Step 4: Iterate on code
-export const iterateCode = async (currentCode, feedback, problem) => {
-  const messages = [
-    {
-      role: 'system',
-      content: `You are helping iterate on an app. Make the requested changes while keeping everything else working. Return the complete updated code.`
-    },
-    {
-      role: 'user',
-      content: `Current code:
-\`\`\`html
-${currentCode}
-\`\`\`
-
-Requested changes: ${feedback}
-
-Original problem: ${problem}
-
-Return the complete updated HTML file with the changes implemented.`
-    }
-  ];
-  
-  return await chatCompletion(messages, { maxTokens: 4000 });
-};
-
-// Step 5: Debug code
-export const debugCode = async (code, errorDescription) => {
-  const messages = [
-    {
-      role: 'system',
-      content: `You are a debugging expert. Identify bugs, explain what's wrong, and provide fixed code.
-
-Format your response as:
-## Issue Found
-[Explanation of the bug]
-
-## How to Fix
-[Step by step fix]
-
-## Fixed Code
-\`\`\`html
-[Complete fixed code]
-\`\`\``
-    },
-    {
-      role: 'user',
-      content: `This code has a problem: "${errorDescription}"
-
-\`\`\`html
-${code}
-\`\`\`
-
-Find and fix the issue.`
-    }
-  ];
-  
-  return await chatCompletion(messages, { maxTokens: 4000 });
-};
-
-// Step 6: Polish and enhance
-export const polishCode = async (code, polishType) => {
-  const polishPrompts = {
-    ui: 'Improve the visual design: better colors, spacing, typography, and animations. Make it look professional.',
-    ux: 'Improve user experience: add loading states, error handling, helpful messages, and intuitive interactions.',
-    accessibility: 'Add accessibility features: ARIA labels, keyboard navigation, screen reader support, color contrast.',
-    performance: 'Optimize performance: reduce code, improve efficiency, add lazy loading if applicable.',
-    mobile: 'Enhance mobile experience: better touch targets, responsive design, mobile-specific features.',
-    all: 'Comprehensively improve the code: better UI, UX, accessibility, performance, and mobile support.'
+  const featureDescriptions = {
+    auth: 'User authentication with login/signup modals and profile management',
+    data: 'Local storage persistence with add, edit, delete operations',
+    social: 'Social features: like buttons with counts, sharing, comments',
+    notifications: 'Toast notification system with success, error, info states',
+    search: 'Real-time search/filter with highlighted results',
+    dark: 'Dark mode with elegant color scheme and smooth toggle',
+    animations: 'Micro-interactions: hover effects, transitions, loading states',
+    charts: 'Data visualization with animated charts and statistics',
+    gamification: 'Points, badges, streaks, and progress tracking',
+    a11y: 'Enhanced accessibility: focus states, ARIA labels, keyboard nav',
+    offline: 'Offline indicator and graceful degradation',
+    export: 'Export functionality with download buttons'
   };
+  
+  const featureList = features.map(f => featureDescriptions[f] || f).join('\n- ');
 
   const messages = [
     {
       role: 'system',
-      content: `You are a senior developer polishing an app. ${polishPrompts[polishType] || polishPrompts.all}
+      content: `You are an expert frontend developer creating sophisticated single-file HTML applications.
+
+DESIGN STANDARDS:
+- Modern, award-winning UI inspired by Linear, Vercel, Stripe
+- Tailwind CSS via CDN for all styling
+- Vanilla JavaScript with ES6+ features
+- Mobile-responsive, accessible
+- Subtle animations with cubic-bezier easing
+- Glass morphism, gradients, shadows for depth
+- All interactive elements must be fully functional
+
+OUTPUT: Return ONLY the complete HTML code. No markdown, no explanations. Start with <!DOCTYPE html>.`
+    },
+    {
+      role: 'user',
+      content: `Create a production-quality web application:
+
+APP: ${appIdea}
+SPECIFICATION: ${description}
+
+REQUIRED FEATURES:
+- ${featureList}
+
+Make it visually stunning with working JavaScript for all interactions.`
+    }
+  ];
+  
+  const code = await chatCompletion(messages, { maxTokens: 24000, temperature: 0.7, provider });
+  return code.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
+};
+
+export const iterateCode = async (currentCode, changeRequest, appIdea) => {
+  const provider = getProviderForGame('vibeCode', 'chat');
+  
+  const messages = [
+    {
+      role: 'system',
+      content: `You are refining an existing HTML application. Apply the requested changes while maintaining all existing functionality and design quality.
+
+OUTPUT: Return ONLY the complete modified HTML. No markdown, no explanations.`
+    },
+    {
+      role: 'user',
+      content: `MODIFY THIS APP:
+
+App: ${appIdea}
+Change Request: ${changeRequest}
+
+CURRENT CODE:
+${currentCode}
+
+Apply the change and return the complete updated HTML.`
+    }
+  ];
+  
+  const code = await chatCompletion(messages, { maxTokens: 24000, temperature: 0.5, provider });
+  return code.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
+};
+
+export const polishCode = async (currentCode, appIdea) => {
+  const provider = getProviderForGame('vibeCode', 'chat');
+  
+  const messages = [
+    {
+      role: 'system',
+      content: `You are a UI polish specialist doing a final pass. Focus on:
+- Micro-interaction refinements
+- Animation timing and easing
+- Color consistency and contrast
+- Spacing and alignment
+- Loading states and error handling
+- Accessibility improvements
+
+OUTPUT: Return ONLY the polished HTML.`
+    },
+    {
+      role: 'user',
+      content: `FINAL POLISH:
+
+App: ${appIdea}
+
+CODE:
+${currentCode}
+
+Make it production-ready.`
+    }
+  ];
+  
+  const code = await chatCompletion(messages, { maxTokens: 24000, temperature: 0.5, provider });
+  return code.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
+};
+
+// BYTE mentor chat - enhanced with personality
+export const byteChat = async (userMessage, context, history = []) => {
+  const provider = getProviderForGame('vibeCode', 'chat');
+  
+  const messages = [
+    {
+      role: 'system',
+      content: `You are BYTE, a friendly AI coding mentor with a fun, encouraging personality.
       
-Return the complete improved code.`
+Your traits:
+- Enthusiastic but not overwhelming
+- Explain things simply with examples
+- Celebrate small wins
+- Reference the "villains" (Chaos, Complexity, Confusion, Bugs, Scope Creep) when relevant
+- Keep responses concise (2-4 sentences usually)
+
+Context: ${context}`
     },
-    {
-      role: 'user',
-      content: `Polish this code (focus: ${polishType}):
-
-\`\`\`html
-${code}
-\`\`\`
-
-Return the complete polished code.`
-    }
+    ...history.slice(-10),
+    { role: 'user', content: userMessage }
   ];
   
-  return await chatCompletion(messages, { maxTokens: 4000 });
-};
-
-// Step 7: Generate app description for demo
-export const generateAppDescription = async (code, problem) => {
-  const messages = [
-    {
-      role: 'system',
-      content: `You help developers create compelling descriptions of their apps for demos and presentations.`
-    },
-    {
-      role: 'user',
-      content: `Generate a demo description for this app:
-
-Problem: ${problem}
-Code: ${code.substring(0, 2000)}...
-
-Provide JSON:
-{
-  "name": "Catchy App Name",
-  "tagline": "One-line description",
-  "problem": "The problem it solves",
-  "solution": "How it solves it",
-  "features": ["Feature 1", "Feature 2", "Feature 3"],
-  "pitchScript": "30-second pitch script",
-  "demoSteps": ["Step 1: ...", "Step 2: ...", "Step 3: ..."]
-}`
-    }
-  ];
-  
-  const response = await chatCompletion(messages);
-  
-  try {
-    const cleaned = response.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch {
-    return {
-      name: 'My App',
-      tagline: problem,
-      pitchScript: response
-    };
-  }
-};
-
-// Code analysis and suggestions
-export const analyzeCode = async (code) => {
-  const messages = [
-    {
-      role: 'system',
-      content: `Analyze this code and provide suggestions in JSON format:
-{
-  "score": 1-10,
-  "strengths": ["...", "..."],
-  "issues": [{"severity": "high/medium/low", "issue": "...", "fix": "..."}],
-  "suggestions": ["...", "..."],
-  "nextSteps": ["...", "..."]
-}`
-    },
-    {
-      role: 'user',
-      content: `Analyze this code:\n\`\`\`html\n${code}\n\`\`\``
-    }
-  ];
-  
-  const response = await chatCompletion(messages);
-  
-  try {
-    const cleaned = response.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch {
-    return { score: 7, strengths: [], issues: [], suggestions: [response], nextSteps: [] };
-  }
+  return await chatCompletion(messages, { maxTokens: 800, temperature: 0.9, provider });
 };
 
 // ============================================
 // SPOT THE FAKE AI SERVICES
 // ============================================
 
-// Generate detection tips for specific image
-export const getDetectionTips = async (imageDescription, category) => {
+export const analyzeImageAuthenticity = async (imageDescription) => {
+  const provider = getProviderForGame('spotTheFake', 'chat');
+  
   const messages = [
     {
       role: 'system',
-      content: `You are an expert at identifying AI-generated images. Provide specific, educational tips.`
+      content: `You are a digital forensics expert specializing in AI-generated image detection. Provide educational analysis.
+
+ANALYSIS FRAMEWORK:
+1. ANATOMICAL - Hands, faces, teeth, symmetry
+2. PHYSICS - Lighting, shadows, reflections
+3. TEXTURES - Skin, hair, fabric details
+4. CONTEXT - Does everything make sense?
+5. ARTIFACTS - Blending, edges, patterns
+
+Be educational and explain WHY things are red flags.`
     },
     {
       role: 'user',
-      content: `Give 5 specific tips for detecting AI-generated ${category} images like: ${imageDescription}
-
-For each tip, explain:
-1. What to look for
-2. Why AI struggles with this
-3. How to check
-
-Format as JSON array of objects with "tip", "reason", and "howToCheck" fields.`
+      content: `Analyze for AI generation signs:\n\n${imageDescription}\n\nProvide detailed breakdown and confidence assessment.`
     }
   ];
   
-  const response = await chatCompletion(messages);
+  return await chatCompletion(messages, { maxTokens: 1200, provider });
+};
+
+export const generateFakeDetectionTips = async (imageType) => {
+  const provider = getProviderForGame('spotTheFake', 'chat');
+  
+  const messages = [
+    {
+      role: 'system',
+      content: `You are an AI literacy educator. Create engaging, practical tips for detecting AI-generated content.`
+    },
+    {
+      role: 'user',
+      content: `Create 5 expert tips for detecting AI-generated ${imageType}.
+
+For each tip:
+- Catchy name
+- What to look for
+- Specific example
+- Difficulty level`
+    }
+  ];
+  
+  return await chatCompletion(messages, { maxTokens: 1000, provider });
+};
+
+// ============================================
+// UTILITIES
+// ============================================
+
+export const testApiConnection = async (providerId) => {
+  const provider = providerId || getProvider();
   
   try {
-    const cleaned = response.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch {
-    return [{ tip: response, reason: '', howToCheck: '' }];
+    const result = await chatCompletion([
+      { role: 'user', content: 'Respond with exactly: "Connected"' }
+    ], { maxTokens: 20, provider });
+    return result.toLowerCase().includes('connected');
+  } catch (error) {
+    console.error('API test failed:', error);
+    return false;
   }
 };
 
-// Analyze image for AI indicators (description-based)
-export const analyzeForAIIndicators = async (imageDescription) => {
-  const messages = [
-    {
-      role: 'system',
-      content: `Based on an image description, identify potential AI generation indicators and provide an analysis.`
-    },
-    {
-      role: 'user',
-      content: `Analyze this image for AI indicators: ${imageDescription}
-
-Respond with JSON:
-{
-  "likelyAI": true/false,
-  "confidence": "high/medium/low",
-  "indicators": [
-    {"element": "...", "suspicion": "high/medium/low", "reason": "..."}
-  ],
-  "humanIndicators": ["...", "..."],
-  "verdict": "Detailed explanation"
-}`
-    }
-  ];
+export const getModelInfo = (providerId) => {
+  const provider = providerId || getProvider();
+  const config = AI_PROVIDERS[provider];
   
-  const response = await chatCompletion(messages);
-  
-  try {
-    const cleaned = response.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch {
-    return { verdict: response };
-  }
+  return {
+    provider: config?.name || provider,
+    chatModel: config?.chatModel || 'Unknown',
+    imageModel: config?.imageModel || 'None',
+    supportsImages: config?.supportsImage || false
+  };
 };
 
-// Generate discussion questions for ethics segment
-export const generateEthicsQuestions = async (examples) => {
-  const messages = [
-    {
-      role: 'system',
-      content: `Generate thought-provoking discussion questions about AI image ethics based on real-world examples.`
-    },
-    {
-      role: 'user',
-      content: `Based on these examples: ${JSON.stringify(examples)}
+export const getAllProviders = () => AI_PROVIDERS;
 
-Generate 5 discussion questions that:
-1. Connect to the examples
-2. Encourage critical thinking
-3. Have no single right answer
-4. Are appropriate for ages 8-80
+export const getImageCapableProviders = () => {
+  return Object.entries(AI_PROVIDERS)
+    .filter(([_, config]) => config.supportsImage)
+    .map(([id, config]) => ({ id, ...config }));
+};
 
-Format as JSON array of objects with "question" and "followUps" (array of follow-up questions).`
-    }
-  ];
-  
-  const response = await chatCompletion(messages);
-  
-  try {
-    const cleaned = response.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch {
-    return [{ question: response, followUps: [] }];
-  }
+export default {
+  AI_PROVIDERS, setProvider, getProvider, getProviderConfig,
+  setApiKey, getApiKey, hasApiKey, clearCredentials,
+  chatCompletion, generateImage,
+  getGameModels, setGameModel, getProviderForGame,
+  critiqueMeme, suggestMemeEdits, generateMemeCaptions, generateMemeImagePrompt, brainstormMemeIdeas,
+  generateInitialCode, iterateCode, polishCode, byteChat,
+  analyzeImageAuthenticity, generateFakeDetectionTips,
+  testApiConnection, getModelInfo, getAllProviders, getImageCapableProviders
 };

@@ -1,16 +1,248 @@
-// ARTIFICIAL: Games for AI Literacy v4
-// Main App Component
+// ARTIFICIAL: Games for AI Literacy v5
+// Main App Component with Tournament Mode
 
-import React, { useState, useEffect } from 'react';
-import { auth, signInAnon, createGameRoom, joinGameRoom, subscribeToRoom } from './firebase';
+import React, { useState, useEffect, useRef } from 'react';
+import { auth, signInAnon, createGameRoom, joinGameRoom, subscribeToRoom, updateGamePhase } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { setApiKey, getApiKey, hasApiKey } from './ai-services';
+import { setApiKey, getApiKey, hasApiKey, setProvider, getProvider, AI_PROVIDERS, getProviderConfig } from './ai-services';
 import { Logo, Button, Input, Modal, Alert } from './components';
 import { FacilitatorDashboard, ProjectorDisplay } from './FacilitatorDashboard';
-import EnhancedHomepage from './EnhancedHomepage';
+import EnhancedHomepage, { InfoPage } from './EnhancedHomepage';
 import SpotTheFake from './SpotTheFake';
 import MemeMachine from './MemeMachine';
 import VibeCodeChallenge from './VibeCodeChallenge';
+import { APISettingsModal } from './APISettingsModal';
+
+
+// ============================================
+// HUMAN AWARD CERTIFICATE COMPONENT
+// ============================================
+
+const HumanAwardCertificate = ({ playerName, totalScore, onClose, onDownload }) => {
+  const canvasRef = useRef(null);
+  
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const width = 800;
+    const height = 600;
+    canvas.width = width;
+    canvas.height = height;
+    
+    // Background gradient
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, '#1e293b');
+    gradient.addColorStop(0.5, '#0f172a');
+    gradient.addColorStop(1, '#1e293b');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+    
+    // Border
+    ctx.strokeStyle = '#22d3ee';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(20, 20, width - 40, height - 40);
+    
+    // Inner border
+    ctx.strokeStyle = '#0891b2';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(35, 35, width - 70, height - 70);
+    
+    // Decorative corners
+    const cornerSize = 30;
+    ctx.fillStyle = '#22d3ee';
+    [[40, 40], [width - 40, 40], [40, height - 40], [width - 40, height - 40]].forEach(([x, y]) => {
+      ctx.beginPath();
+      ctx.arc(x, y, 8, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    
+    // Title
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 48px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('CERTIFICATE OF ACHIEVEMENT', width / 2, 120);
+    
+    // Award name
+    ctx.fillStyle = '#22d3ee';
+    ctx.font = 'bold 72px Impact, sans-serif';
+    ctx.fillText('THE HUMAN AWARD', width / 2, 200);
+    
+    // Trophy emoji (as text)
+    ctx.font = '80px Arial';
+    ctx.fillText('🏆', width / 2, 300);
+    
+    // This certifies
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '24px Georgia, serif';
+    ctx.fillText('This certifies that', width / 2, 360);
+    
+    // Player name
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 56px Georgia, serif';
+    ctx.fillText(playerName, width / 2, 420);
+    
+    // Colon and PERSON
+    ctx.fillStyle = '#22d3ee';
+    ctx.font = 'bold 36px Impact, sans-serif';
+    ctx.fillText(': PERSON', width / 2, 470);
+    
+    // Achievement text
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '20px Georgia, serif';
+    ctx.fillText('Has demonstrated exceptional AI literacy skills', width / 2, 510);
+    ctx.fillText(`and earned ${totalScore} points across all challenges`, width / 2, 540);
+    
+    // Date
+    ctx.fillStyle = '#64748b';
+    ctx.font = '16px Georgia, serif';
+    ctx.fillText(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), width / 2, 575);
+  }, [playerName, totalScore]);
+  
+  const handleDownload = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const link = document.createElement('a');
+    link.download = `${playerName}-Human-Award.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    if (onDownload) onDownload();
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-2xl p-6 max-w-4xl w-full">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold text-white">🏆 THE HUMAN AWARD</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        
+        <div className="flex justify-center mb-6">
+          <canvas ref={canvasRef} className="rounded-lg shadow-2xl max-w-full" style={{ maxHeight: '60vh' }} />
+        </div>
+        
+        <div className="flex gap-4 justify-center">
+          <button onClick={handleDownload} className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white px-8 py-3 rounded-xl font-bold">
+            📥 Download Certificate
+          </button>
+          <button onClick={onClose} className="bg-slate-700 hover:bg-slate-600 text-white px-8 py-3 rounded-xl font-bold">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// TOURNAMENT RESULTS COMPONENT
+// ============================================
+
+const TournamentResults = ({ room, gameCode, onClose, onNextGame, currentGameIndex, isHost }) => {
+  const [showCertificate, setShowCertificate] = useState(null);
+  const players = Object.values(room?.players || {}).sort((a, b) => (b.tournamentScore || 0) - (a.tournamentScore || 0));
+  const games = ['spotTheFake', 'memeMachine', 'vibeCode'];
+  const gameNames = { spotTheFake: 'Spot the Fake', memeMachine: 'Meme Machine', vibeCode: 'Vibe Code Challenge' };
+  const isComplete = currentGameIndex >= 2;
+  const winner = players[0];
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 overflow-y-auto">
+      <div className="max-w-4xl mx-auto py-8">
+        <div className="text-center mb-8">
+          <div className="text-8xl mb-4">{isComplete ? '🏆' : '📊'}</div>
+          <h1 className="text-4xl font-black text-white mb-2">
+            {isComplete ? 'TOURNAMENT COMPLETE!' : 'TOURNAMENT STANDINGS'}
+          </h1>
+          <p className="text-cyan-400">
+            {isComplete ? 'The ultimate AI literacy champion has been crowned!' : `Game ${currentGameIndex + 1} of 3 complete`}
+          </p>
+        </div>
+        
+        {/* Progress */}
+        <div className="flex justify-center gap-4 mb-8">
+          {games.map((g, i) => (
+            <div key={g} className={`px-4 py-2 rounded-xl text-sm font-bold ${
+              i < currentGameIndex ? 'bg-emerald-500 text-white' :
+              i === currentGameIndex ? 'bg-cyan-500 text-white' :
+              'bg-slate-700 text-slate-400'
+            }`}>
+              {i < currentGameIndex ? '✓' : i + 1}. {gameNames[g]}
+            </div>
+          ))}
+        </div>
+        
+        {/* Leaderboard */}
+        <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 mb-8">
+          <h2 className="text-xl font-bold text-white mb-4">🏅 Tournament Leaderboard</h2>
+          <div className="space-y-3">
+            {players.map((player, i) => (
+              <div key={player.id} className={`flex items-center justify-between p-4 rounded-xl ${
+                i === 0 ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white' :
+                i === 1 ? 'bg-slate-300 text-slate-800' :
+                i === 2 ? 'bg-orange-200 text-orange-900' :
+                'bg-slate-700 text-white'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl font-black">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`}</span>
+                  <span className="font-bold text-lg">{player.name}</span>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-black">{player.tournamentScore || 0}</div>
+                  <div className="text-xs opacity-80">total points</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Winner & Human Award */}
+        {isComplete && winner && (
+          <div className="bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-2xl p-8 border border-amber-500/30 mb-8 text-center">
+            <div className="text-6xl mb-4">👑</div>
+            <h2 className="text-3xl font-black text-amber-400 mb-2">THE HUMAN AWARD WINNER</h2>
+            <p className="text-5xl font-black text-white mb-4">{winner.name}</p>
+            <p className="text-slate-300 mb-6">{winner.name}: PERSON</p>
+            <button 
+              onClick={() => setShowCertificate(winner)}
+              className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white px-8 py-4 rounded-xl font-bold text-lg"
+            >
+              🏆 Generate Certificate
+            </button>
+          </div>
+        )}
+        
+        {/* Actions */}
+        <div className="text-center space-y-4">
+          {!isComplete && isHost && (
+            <button 
+              onClick={onNextGame}
+              className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white px-12 py-4 rounded-xl font-bold text-xl"
+            >
+              Start Next Game: {gameNames[games[currentGameIndex + 1]]} →
+            </button>
+          )}
+          <button 
+            onClick={onClose}
+            className="bg-slate-700 hover:bg-slate-600 text-white px-8 py-3 rounded-xl font-bold"
+          >
+            {isComplete ? 'Back to Home' : 'View Current Game'}
+          </button>
+        </div>
+      </div>
+      
+      {showCertificate && (
+        <HumanAwardCertificate 
+          playerName={showCertificate.name} 
+          totalScore={showCertificate.tournamentScore || 0}
+          onClose={() => setShowCertificate(null)}
+        />
+      )}
+    </div>
+  );
+};
 
 function App() {
   // Auth & user state
@@ -23,11 +255,20 @@ function App() {
   const [gameCode, setGameCode] = useState('');
   const [room, setRoom] = useState(null);
   
+  // Tournament state
+  const [isTournament, setIsTournament] = useState(false);
+  const [tournamentGameIndex, setTournamentGameIndex] = useState(0);
+  const [showTournamentResults, setShowTournamentResults] = useState(false);
+  const TOURNAMENT_GAMES = ['spotTheFake', 'memeMachine', 'vibeCode'];
+  
   // UI state
   const [playerName, setPlayerName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [showApiModal, setShowApiModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
   const [apiKeyInput, setApiKeyInput] = useState('');
+  const [selectedProvider, setSelectedProvider] = useState('gemini');
   const [showGameInfo, setShowGameInfo] = useState(null);
   const [error, setError] = useState('');
   const [showDashboard, setShowDashboard] = useState(false);
@@ -59,13 +300,37 @@ function App() {
     return () => unsubscribe();
   }, [gameCode]);
   
-  // Check for saved API key
+  // Check for saved API key and provider
   useEffect(() => {
+    const savedProvider = getProvider();
+    setSelectedProvider(savedProvider);
     const savedKey = getApiKey();
     if (savedKey) {
       setApiKeyInput(savedKey);
     }
   }, []);
+  
+  // Handle URL routing for dashboard and info pages
+  useEffect(() => {
+    const path = window.location.pathname;
+    const params = new URLSearchParams(window.location.search);
+    
+    if (path === '/dashboard' || path.startsWith('/dashboard')) {
+      const code = params.get('code');
+      if (code) {
+        setGameCode(code);
+        setShowDashboard(true);
+      }
+    }
+    
+    // Handle info page routes
+    if (path.startsWith('/info/')) {
+      setCurrentInfoPage(path.replace('/info/', ''));
+    }
+  }, []);
+  
+  // Info pages state
+  const [currentInfoPage, setCurrentInfoPage] = useState(null);
   
   // Game definitions
   const games = [
@@ -74,10 +339,10 @@ function App() {
       name: 'Spot the Fake',
       icon: '🔍',
       tagline: 'Can you tell real from AI?',
-      description: 'Learn to identify AI-generated images through hands-on practice. Includes real-world examples, detection techniques, and discussions about ethics and legal implications.',
+      description: 'Learn to identify AI-generated images. Includes werewolf-style finale where one player has the AI image!',
       duration: '30-45 min',
       players: '2-20',
-      features: ['Real vs AI detection', 'Editing recognition', 'Create & deceive round', 'Ethics discussion', 'Legal landscape'],
+      features: ['Real vs AI detection', 'Ethics discussion', 'Legal landscape', 'Werewolf finale'],
       color: '#48a89a'
     },
     {
@@ -85,26 +350,38 @@ function App() {
       name: 'Meme Machine',
       icon: '🚀',
       tagline: 'Create viral advocacy content',
-      description: 'Build memes for community causes using AI tools. Get feedback on effectiveness, iterate on your designs, and watch them "go viral" in simulation.',
+      description: 'Build memes for community causes. Watch them go viral with reactions, comments, and voting!',
       duration: '45-60 min',
       players: '3-20',
-      features: ['AI caption generation', 'AI image creation', 'Expert critique', 'Edit & improve', 'Viral simulation'],
+      features: ['AI image creation', 'Virality simulation', 'Emoji reactions', 'Most Viral & Most Dank awards'],
       color: '#d4a84b'
     },
     {
       id: 'vibeCode',
       name: 'Vibe Code Challenge',
       icon: '💻',
-      tagline: 'Build apps with AI, no coding needed',
-      description: 'Create real, working apps by describing what you want in plain language. AI writes the code while you guide the vision.',
+      tagline: 'Build apps with AI, defeat the villains!',
+      description: 'Battle CHAOS, COMPLEXITY, and BUGS to create real apps. Get voted on your creations!',
       duration: '45-60 min',
       players: '2-15',
-      features: ['Problem clarification', 'Feature planning', 'AI code generation', 'Iterate & debug', 'Polish & demo'],
+      features: ['Villain battles', 'AI code generation', 'App showcase', 'Best Vibe Coder award'],
       color: '#6b8cce'
+    },
+    {
+      id: 'tournament',
+      name: 'TOURNAMENT MODE',
+      icon: '🏆',
+      tagline: 'Play all 3 games, win the Human Award!',
+      description: 'The ultimate AI literacy challenge! Play all three games back-to-back. Top scorer wins the Human Award certificate.',
+      duration: '2-3 hours',
+      players: '3-15',
+      features: ['All 3 games', 'Persistent leaderboard', 'Human Award certificate', 'Ultimate champion'],
+      color: '#ec4899',
+      isTournament: true
     }
   ];
   
-  // Host a game
+  // Host a game (or tournament)
   const handleHost = async (gameType) => {
     if (!playerName.trim()) {
       setError('Please enter your name');
@@ -112,15 +389,30 @@ function App() {
     }
     setError('');
     try {
-      const code = await createGameRoom(gameType, playerName);
+      const actualGameType = gameType === 'tournament' ? 'spotTheFake' : gameType;
+      const code = await createGameRoom(actualGameType, playerName);
       setGameCode(code);
-      setCurrentGame(gameType);
+      setCurrentGame(actualGameType);
+      setIsTournament(gameType === 'tournament');
+      setTournamentGameIndex(0);
       setView('game');
       setShowGameInfo(null);
     } catch (err) {
       setError('Failed to create game: ' + err.message);
     }
   };
+  
+  // Handle tournament next game
+  const handleNextTournamentGame = async () => {
+    const nextIndex = tournamentGameIndex + 1;
+    if (nextIndex < TOURNAMENT_GAMES.length) {
+      setTournamentGameIndex(nextIndex);
+      setCurrentGame(TOURNAMENT_GAMES[nextIndex]);
+      setShowTournamentResults(false);
+      await updateGamePhase(gameCode, 'lobby');
+    }
+  };
+
   
   // Join a game
   const handleJoin = async () => {
@@ -197,6 +489,26 @@ function App() {
     );
   }
   
+  // Tournament Results
+  if (showTournamentResults && isTournament && room) {
+    return (
+      <TournamentResults
+        room={room}
+        gameCode={gameCode}
+        currentGameIndex={tournamentGameIndex}
+        isHost={isHost}
+        onClose={() => {
+          if (tournamentGameIndex >= 2) {
+            handleBackToHome();
+          } else {
+            setShowTournamentResults(false);
+          }
+        }}
+        onNextGame={handleNextTournamentGame}
+      />
+    );
+  }
+  
   // Game views
   if (view === 'game' && currentGame && gameCode) {
     const gameProps = {
@@ -206,6 +518,12 @@ function App() {
       isHost,
       onBack: handleBackToHome,
       onOpenDashboard: () => setShowDashboard(true),
+      isTournament,
+      onGameComplete: () => {
+        if (isTournament) {
+          setShowTournamentResults(true);
+        }
+      },
     };
     
     switch (currentGame) {
@@ -218,6 +536,16 @@ function App() {
       default:
         return <div>Unknown game</div>;
     }
+  }
+  
+  // Info page view
+  if (currentInfoPage) {
+    return (
+      <InfoPage 
+        pageId={currentInfoPage}
+        onClose={() => setCurrentInfoPage(null)}
+      />
+    );
   }
   
   // Home view
@@ -238,7 +566,7 @@ function App() {
                   : 'bg-yellow-100 text-yellow-800'
               }`}
             >
-              {hasApiKey() ? '✓ AI Ready' : '⚠️ Set API Key'}
+              {hasApiKey() ? `✓ ${AI_PROVIDERS[getProvider()]?.name}` : '⚠️ Set AI Provider'}
             </button>
           </div>
         </div>
@@ -249,9 +577,11 @@ function App() {
         <EnhancedHomepage 
           onHost={() => setView('host')}
           onJoin={() => setView('join')}
+          onOpenSettings={() => setShowSettings(true)}
           onSelectGame={(gameId) => {
             setShowGameInfo(games.find(g => g.id === gameId));
           }}
+          onShowInfoPage={(pageId) => setCurrentInfoPage(pageId)}
           games={games}
         />
       </div>
@@ -288,11 +618,20 @@ function App() {
           <div className="border-t border-white/10 pt-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="text-center md:text-left">
-                <p className="text-sm text-white/70">
-                  A community AI app from <a href="https://brooklineinteractive.org" target="_blank" rel="noopener noreferrer" className="text-white hover:underline">Brookline Interactive Group</a> in partnership with <a href="https://weirdmachine.org" target="_blank" rel="noopener noreferrer" className="text-white hover:underline">Neighborhood AI</a>.
+                <p className="text-base text-white font-medium">
+                  A community AI app from <a href="https://brooklineinteractive.org" target="_blank" rel="noopener noreferrer" className="text-[#48a89a] hover:text-[#5bc4b4] underline decoration-2 underline-offset-4 transition-colors">Brookline Interactive Group</a> in partnership with <a href="https://weirdmachine.org" target="_blank" rel="noopener noreferrer" className="text-[#48a89a] hover:text-[#5bc4b4] underline decoration-2 underline-offset-4 transition-colors">Neighborhood AI</a>.
                 </p>
-                <p className="text-sm text-white/50 mt-1">
-                  Game Designed and Developed by Stephen Walter + AI in 2025.
+                <p className="text-base text-white mt-2 font-medium">
+                  Game Designed and Developed by{' '}
+                  <a 
+                    href="https://weirdmachine.org" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-[#48a89a] hover:text-[#5bc4b4] font-bold underline decoration-2 underline-offset-4 transition-colors"
+                  >
+                    Stephen Walter
+                  </a>
+                  {' '}+ AI in 2026.
                 </p>
               </div>
               
@@ -451,31 +790,105 @@ function App() {
       <Modal 
         isOpen={showApiModal} 
         onClose={() => setShowApiModal(false)}
-        title="OpenAI API Key"
-        size="sm"
+        title="AI Settings"
+        size="md"
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
           <p className="text-[#6b7c74] text-sm">
-            Enter your OpenAI API key to enable AI features like image generation, 
-            caption suggestions, and code generation.
+            Choose your AI provider and enter your API key to enable AI features.
           </p>
           
-          <Input 
-            label="API Key"
-            placeholder="sk-..."
-            value={apiKeyInput}
-            onChange={setApiKeyInput}
-            type="password"
-          />
+          {/* Provider Selector */}
+          <div>
+            <label className="block text-sm font-medium text-[#3d5a4c] mb-2">AI Provider</label>
+            <div className="grid grid-cols-2 gap-3">
+              {Object.entries(AI_PROVIDERS).map(([id, provider]) => (
+                <button
+                  key={id}
+                  onClick={() => {
+                    setSelectedProvider(id);
+                    setProvider(id);
+                    setApiKeyInput(localStorage.getItem(`ai_key_${id}`) || '');
+                  }}
+                  className={`p-4 rounded-xl border-2 text-left transition-all ${
+                    selectedProvider === id
+                      ? 'border-[#48a89a] bg-[#48a89a]/10'
+                      : 'border-[#e2e0dc] hover:border-[#48a89a]/50'
+                  }`}
+                >
+                  <div className="font-bold text-[#3d5a4c]">{provider.name}</div>
+                  <div className="text-xs text-[#6b7c74] mt-1">{provider.description}</div>
+                  {!provider.imageModel && (
+                    <div className="text-xs text-amber-600 mt-1">⚠️ No image generation</div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* API Key Input (if required) */}
+          {AI_PROVIDERS[selectedProvider]?.requiresKey && (
+            <div>
+              <Input 
+                label={`${AI_PROVIDERS[selectedProvider]?.name} API Key`}
+                placeholder={AI_PROVIDERS[selectedProvider]?.keyPlaceholder}
+                value={apiKeyInput}
+                onChange={setApiKeyInput}
+                type="password"
+              />
+              <p className="text-xs text-[#6b7c74] mt-2">
+                Get a key at{' '}
+                <a 
+                  href={AI_PROVIDERS[selectedProvider]?.keyLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-[#48a89a] underline"
+                >
+                  {AI_PROVIDERS[selectedProvider]?.keyLink?.replace('https://', '')}
+                </a>
+              </p>
+            </div>
+          )}
+          
+          {!AI_PROVIDERS[selectedProvider]?.requiresKey && (
+            <Alert type="info">
+              {selectedProvider === 'ollama' 
+                ? 'Make sure Ollama is running locally on port 11434. No API key needed!'
+                : 'This provider does not require an API key.'}
+            </Alert>
+          )}
           
           <Alert type="info">
-            Your API key is stored locally in your browser and never sent to our servers.
-            Get a key at <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer" className="underline">platform.openai.com</a>
+            Your settings are stored locally in your browser and never sent to our servers.
           </Alert>
           
-          <Button onClick={handleSaveApiKey} disabled={!apiKeyInput} className="w-full">
-            Save API Key
+          <Button 
+            onClick={() => {
+              setProvider(selectedProvider);
+              if (apiKeyInput.trim()) {
+                setApiKey(apiKeyInput.trim());
+              }
+              setShowApiModal(false);
+            }} 
+            disabled={AI_PROVIDERS[selectedProvider]?.requiresKey && !apiKeyInput} 
+            className="w-full"
+          >
+            Save Settings
           </Button>
+          
+          {/* Current Status */}
+          <div className="pt-3 border-t border-[#e2e0dc]">
+            <div className="flex justify-between text-sm">
+              <span className="text-[#6b7c74]">Current Provider:</span>
+              <span className="font-medium text-[#3d5a4c]">{AI_PROVIDERS[getProvider()]?.name}</span>
+            </div>
+            <div className="flex justify-between text-sm mt-1">
+              <span className="text-[#6b7c74]">Status:</span>
+              <span className={hasApiKey() ? 'text-green-600' : 'text-amber-600'}>
+                {hasApiKey() ? '✓ Ready' : '⚠ Key Required'}
+              </span>
+            </div>
+          </div>
         </div>
       </Modal>
     </div>

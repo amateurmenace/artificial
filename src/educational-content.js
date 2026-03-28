@@ -116,11 +116,11 @@ export const educationalContent = {
         question: "When is creating AI images acceptable vs. harmful?",
         discussion: "AI art for personal creativity and clearly labeled content is generally acceptable. Problems arise when AI images are used to deceive or manipulate.",
         scenarios: [
-          "✅ Creating AI art for a personal project with clear labeling",
-          "✅ Using AI to visualize concepts that don't exist",
-          "⚠️ Creating AI images of real people without consent",
-          "❌ Spreading AI images as real news or documentation",
-          "❌ Creating non-consensual intimate imagery of real people"
+          "âœ… Creating AI art for a personal project with clear labeling",
+          "âœ… Using AI to visualize concepts that don't exist",
+          "âš ï¸ Creating AI images of real people without consent",
+          "âŒ Spreading AI images as real news or documentation",
+          "âŒ Creating non-consensual intimate imagery of real people"
         ]
       },
       {

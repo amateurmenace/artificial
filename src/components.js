@@ -45,7 +45,7 @@ export const Button = ({ children, variant = 'primary', size = 'md', onClick, di
       className={`${sizes[size]} rounded-lg font-medium transition-all duration-200 
         disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${variants[variant]} ${className}`}
     >
-      {loading && <span className="animate-spin">â³</span>}
+      {loading && <span className="animate-spin">⏳</span>}
       {children}
     </button>
   );
@@ -110,7 +110,7 @@ export const Timer = ({ seconds, onComplete, paused = false, extension = 0 }) =>
   
   return (
     <div className="flex items-center gap-2">
-      {paused && <span className="text-yellow-500">â¸ï¸</span>}
+      {paused && <span className="text-yellow-500">⏸️</span>}
       <div className={`font-mono text-2xl font-bold ${isLow ? 'text-red-500 animate-pulse' : 'text-[#3d5a4c]'}`}>
         {mins}:{secs.toString().padStart(2, '0')}
       </div>
@@ -133,7 +133,7 @@ export const ProgressSteps = ({ steps, currentStep, onStepClick }) => (
                 : 'bg-[#e2e0dc] text-[#6b7c74]'}
             ${onStepClick ? 'cursor-pointer hover:scale-110' : ''}`}
         >
-          {i < currentStep ? 'âœ“' : i + 1}
+          {i < currentStep ? '✓' : i + 1}
         </button>
         {i < steps.length - 1 && (
           <div className={`h-1 w-8 rounded ${i < currentStep ? 'bg-[#48a89a]' : 'bg-[#e2e0dc]'}`} />
@@ -153,7 +153,7 @@ export const PlayerList = ({ players, currentUserId, showScores = true }) => (
           className={`px-3 py-1.5 rounded-full text-sm flex items-center gap-2 transition-all
             ${player.id === currentUserId ? 'bg-[#48a89a] text-white' : 'bg-[#f5f3ef] text-[#3d5a4c]'}`}
         >
-          {player.isHost && <span>ðŸ‘‘</span>}
+          {player.isHost && <span>👑''</span>}
           <span>{player.name}</span>
           {showScores && player.score > 0 && <span className="font-bold">({player.score})</span>}
         </div>
@@ -200,12 +200,12 @@ export const ImageUploader = ({ onUpload, uploading, accept = 'image/*', preview
         <img src={preview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
       ) : uploading ? (
         <div className="text-[#48a89a]">
-          <div className="text-4xl animate-spin mb-2">â³</div>
+          <div className="text-4xl animate-spin mb-2">⏳</div>
           <div>Uploading...</div>
         </div>
       ) : (
         <div>
-          <div className="text-4xl mb-2">ðŸ“¤</div>
+          <div className="text-4xl mb-2">📤</div>
           <div className="text-[#3d5a4c] font-medium">Click to upload</div>
           <div className="text-xs text-[#6b7c74]">PNG, JPG, GIF up to 10MB</div>
         </div>
@@ -233,7 +233,7 @@ export const ImageCard = ({ src, alt, onClick, selected, label, overlay }) => (
     )}
     {selected && (
       <div className="absolute top-2 right-2 w-8 h-8 bg-[#48a89a] rounded-full flex items-center justify-center text-white">
-        âœ“
+        ✓
       </div>
     )}
   </div>
@@ -251,10 +251,10 @@ export const Alert = ({ type = 'info', children, onClose }) => {
     error: 'bg-red-50 border-red-200 text-red-800',
   };
   const icons = {
-    info: 'â„¹ï¸',
-    success: 'âœ…',
-    warning: 'âš ï¸',
-    error: 'âŒ',
+    info: 'ℹ️',
+    success: '✅',
+    warning: '⚠️',
+    error: '❌',
   };
   
   return (
@@ -262,7 +262,7 @@ export const Alert = ({ type = 'info', children, onClose }) => {
       <span>{icons[type]}</span>
       <div className="flex-1">{children}</div>
       {onClose && (
-        <button onClick={onClose} className="opacity-50 hover:opacity-100">Ã—</button>
+        <button onClick={onClose} className="opacity-50 hover:opacity-100 text-lg font-bold">&times;</button>
       )}
     </div>
   );
@@ -287,11 +287,11 @@ export const ScoreBar = ({ scores, maxScore = 10 }) => (
 
 export const ReactionBar = ({ reactions, onReact }) => {
   const reactionTypes = [
-    { emoji: 'ðŸ˜‚', name: 'funny', label: 'Funny' },
-    { emoji: 'â¤ï¸', name: 'love', label: 'Love' },
-    { emoji: 'ðŸ˜®', name: 'wow', label: 'Wow' },
-    { emoji: 'ðŸ˜ ', name: 'angry', label: 'Angry' },
-    { emoji: 'ðŸ”„', name: 'share', label: 'Share' },
+    { emoji: '😂', name: 'funny', label: 'Funny' },
+    { emoji: '❤️', name: 'love', label: 'Love' },
+    { emoji: '😮', name: 'wow', label: 'Wow' },
+    { emoji: '😠', name: 'angry', label: 'Angry' },
+    { emoji: '🔍"', name: 'share', label: 'Share' },
   ];
   
   return (
@@ -333,8 +333,8 @@ export const Modal = ({ isOpen, onClose, title, children, size = 'md', showClose
           <div className="flex justify-between items-center p-4 border-b border-[#e2e0dc]">
             {title && <h2 className="text-xl font-bold text-[#3d5a4c]">{title}</h2>}
             {showClose && (
-              <button onClick={onClose} className="text-[#6b7c74] hover:text-[#3d5a4c] text-2xl">
-                Ã—
+              <button onClick={onClose} className="text-[#6b7c74] hover:text-[#3d5a4c] text-2xl font-light">
+                &times;
               </button>
             )}
           </div>
@@ -361,9 +361,9 @@ export const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, conf
 
 export const Badge = ({ game, playerName, onExport }) => {
   const badges = {
-    spotTheFake: { title: 'Truth Detective', icon: 'ðŸ”', color: '#48a89a' },
-    memeMachine: { title: 'Viral Visionary', icon: 'ðŸš€', color: '#d4a84b' },
-    vibeCode: { title: 'Civic Coder', icon: 'ðŸ’»', color: '#6b8cce' },
+    spotTheFake: { title: 'Truth Detective', icon: '🔍', color: '#48a89a' },
+    memeMachine: { title: 'Viral Visionary', icon: '🚀', color: '#d4a84b' },
+    vibeCode: { title: 'Civic Coder', icon: '💻', color: '#6b8cce' },
   };
   const badge = badges[game] || badges.spotTheFake;
   
@@ -380,7 +380,7 @@ export const Badge = ({ game, playerName, onExport }) => {
       <div className="text-xs text-[#6b7c74] mt-2 mb-4">ARTIFICIAL: Games for AI Literacy</div>
       {onExport && (
         <Button variant="secondary" size="sm" onClick={onExport}>
-          ðŸ“¥ Export Badge
+          👑"¥ Export Badge
         </Button>
       )}
     </div>
@@ -432,19 +432,19 @@ export const AIChatAssistant = ({ context, placeholder, onResponse, disabled, in
       <div className="h-56 overflow-y-auto p-4 bg-[#f5f3ef] space-y-3">
         {history.length === 0 && (
           <div className="text-[#6b7c74] text-center py-8">
-            <div className="text-3xl mb-2">ðŸ¤–</div>
+            <div className="text-3xl mb-2">🤖</div>
             <div>Ask the AI assistant for help!</div>
           </div>
         )}
         {history.map((msg, i) => (
           <div key={i} className={`p-3 rounded-lg ${msg.role === 'user' ? 'bg-[#3d5a4c] text-white ml-12' : 'bg-white mr-12 shadow-sm'}`}>
-            <div className="text-xs opacity-70 mb-1">{msg.role === 'user' ? 'You' : 'ðŸ¤– AI Assistant'}</div>
+            <div className="text-xs opacity-70 mb-1">{msg.role === 'user' ? 'You' : '🤖 AI Assistant'}</div>
             <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
           </div>
         ))}
         {loading && (
           <div className="bg-white p-3 rounded-lg mr-12 shadow-sm">
-            <div className="text-xs opacity-70 mb-1">ðŸ¤– AI Assistant</div>
+            <div className="text-xs opacity-70 mb-1">🤖 AI Assistant</div>
             <div className="text-sm flex items-center gap-2">
               <span className="animate-pulse">Thinking</span>
               <span className="animate-bounce">.</span>
@@ -555,7 +555,7 @@ export const CodeEditor = ({ code, onChange, language = 'html' }) => {
       <div className="px-4 py-2 bg-gray-800 flex justify-between items-center">
         <span className="text-sm text-gray-400">{language.toUpperCase()}</span>
         <Button size="xs" variant="ghost" onClick={() => navigator.clipboard.writeText(code)} className="text-gray-400">
-          ðŸ“‹ Copy
+          📋 Copy
         </Button>
       </div>
       <textarea
@@ -658,7 +658,7 @@ export const CodeStreamingAnimation = ({ code, onComplete, speed = 5 }) => {
             </>
           ) : (
             <>
-              <span className="text-green-400">âœ“</span>
+              <span className="text-green-400">✓</span>
               <span className="text-green-400 text-sm">Code complete!</span>
             </>
           )}
