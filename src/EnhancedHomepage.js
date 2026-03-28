@@ -757,8 +757,9 @@ const EnhancedHomepage = ({ onHost, onJoin, onSelectGame, onShowInfoPage, onOpen
               </div>
               
               <p className="text-2xl md:text-3xl text-white/80 mb-10 leading-relaxed">
-                Three multiplayer games that teach you to detect AI content, create with AI tools, 
-                and build apps without coding. Perfect for classrooms, workshops, and curious minds.
+                Five free multiplayer games that teach you to detect AI content, compare AI models,
+                create and advocate for your community with AI tools, and build and deploy real, functioning
+                apps without coding. Perfect for classrooms, workshops, and playful minds.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4">
