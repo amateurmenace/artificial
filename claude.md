@@ -78,9 +78,14 @@ Play all three games back-to-back with persistent scoring across games. Winner r
 src/
 ├── App.js                    # Main app, routing, game orchestration, tournament mode
 ├── EnhancedHomepage.js       # Homepage with animated previews, info pages
+├── GameShowcase.js           # Enhanced homepage showcase sections for all games
 ├── SpotTheFake.js            # Spot the Fake game (werewolf finale)
 ├── MemeMachine.js            # Meme Machine game (virality simulation)
 ├── VibeCodeChallenge.js      # Vibe Code game (villains, voting, awards)
+├── ModelComparison.js        # AI Model Comparison bonus game (blind testing)
+├── RemixMode.js              # Remix Mode bonus game (fork & iterate)
+├── PromptTimeline.js         # Shared prompt history/replay sidebar
+├── DeployGuide.js            # GitHub Pages deployment wizard
 ├── FacilitatorDashboard.js   # Host dashboard, projector display
 ├── components.js             # Shared UI components
 ├── firebase.js               # Firebase config, real-time subscriptions
@@ -169,7 +174,16 @@ games/
 
 ---
 
-## Recent Changes (v11)
+## Recent Changes (v12)
+
+1. **AI Model Comparison Game** - New bonus mini-game: same prompt sent to multiple AI models (GPT, Gemini, Claude, etc.), blind voting, dramatic reveal of which model made which output
+2. **Prompt History/Replay Timeline** - Slide-out sidebar in Meme Machine and Vibe Code showing all prompts sent during the session with insights and filters
+3. **Remix Mode** - New bonus mini-game: fork another player's app/meme, iterate on it, vote on best remixes
+4. **Real-World Deployment** - Step-by-step GitHub Pages deployment wizard in Vibe Code — players leave with a live URL
+5. **Enhanced Homepage Showcase** - Replaced brief game cards with full scrolling showcase sections for all 6 games (3 core + 2 bonus + tournament), each with "What Makes It Fun", "What You'll Learn", real examples, and CTA buttons
+6. **multiProviderCompletion** - New AI service function for running the same prompt against multiple providers in parallel
+
+## Previous Changes (v11)
 
 1. **Default Gemini API Key** - Facilitator key hardcoded as fallback so users don't need their own
 2. **Nano Banana Image Gen** - Switched from Imagen 3 to Gemini native image generation (`gemini-2.5-flash-image`)
@@ -257,11 +271,11 @@ A default Gemini API key is provided so users can play without configuration. Us
 - [ ] More image pairs for Spot the Fake
 - [ ] Localization support
 - [ ] Live collaboration mode (see each other's progress)
-- [ ] AI model comparison round
-- [ ] Prompt history/replay timeline
-- [ ] "Remix" mode (fork others' apps)
+- [x] AI model comparison round ✓
+- [x] Prompt history/replay timeline ✓
+- [x] "Remix" mode (fork others' apps) ✓
 - [ ] Accessibility challenge round
-- [ ] Real-world deployment (GitHub Pages/Netlify)
+- [x] Real-world deployment (GitHub Pages) ✓
 
 ---
 
@@ -275,4 +289,4 @@ When starting a new session:
 
 ---
 
-*Last updated: March 28, 2026 (v11)*
+*Last updated: March 28, 2026 (v12)*

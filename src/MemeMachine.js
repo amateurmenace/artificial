@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, Button, Badge, Alert } from './components';
 import { updateGamePhase, submitToGame, submitVote, updatePlayerScore } from './firebase';
 import { chatCompletion, generateImage, hasApiKey, getProviderForGame, getApiKey } from './ai-services';
+import { PromptTimelineProvider, usePromptTimeline, PromptTimelineSidebar, PromptTimelineButton } from './PromptTimeline';
 
 // ============================================
 // SCORING & AWARDS
@@ -602,6 +603,10 @@ const MemeMachine = ({ gameCode, room, userId, isHost, onBack, onOpenDashboard }
   const [showSlop, setShowSlop] = useState(false);
   const [slopMessage, setSlopMessage] = useState('');
   const [slopTips, setSlopTips] = useState([]);
+
+  // Prompt Timeline
+  const [showTimeline, setShowTimeline] = useState(false);
+  const { addEntry } = usePromptTimeline();
   
   // Timer
   const [timeLeft, setTimeLeft] = useState(0);
@@ -1724,7 +1729,26 @@ Provide your analysis.`
             <p className="text-amber-400 mb-2">You've learned to defeat Señor Slop by crafting specific, meaningful prompts!</p>
             <p className="text-slate-400 text-sm">Remember: Good prompts = Better AI results. Take this skill everywhere!</p>
           </div>} mood="proud" />
-          
+
+          {/* Bonus Round Buttons */}
+          {isHost && (
+            <div className="bg-slate-800 rounded-2xl p-6 border border-purple-500/30 mb-8">
+              <h3 className="text-lg font-bold text-purple-400 mb-4 text-center">Bonus Rounds</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <button onClick={() => { onBack(); setTimeout(() => { window.dispatchEvent(new CustomEvent('startBonusGame', { detail: { game: 'modelComparison', sourceData: { problem: selectedIssue } } })); }, 100); }} className="p-4 bg-indigo-500/20 border border-indigo-500/40 rounded-xl text-left hover:bg-indigo-500/30 transition-colors">
+                  <div className="text-2xl mb-1">⚔️</div>
+                  <p className="text-white font-bold text-sm">Model Comparison</p>
+                  <p className="text-slate-400 text-xs">Compare AI models on meme captions</p>
+                </button>
+                <button onClick={() => { onBack(); setTimeout(() => { window.dispatchEvent(new CustomEvent('startBonusGame', { detail: { game: 'remix', sourceSubmissions: room?.submissions || [], sourceType: 'meme' } })); }, 100); }} className="p-4 bg-purple-500/20 border border-purple-500/40 rounded-xl text-left hover:bg-purple-500/30 transition-colors">
+                  <div className="text-2xl mb-1">🔀</div>
+                  <p className="text-white font-bold text-sm">Remix Mode</p>
+                  <p className="text-slate-400 text-xs">Fork and remix each other's memes</p>
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="text-center mt-8">
             <Button onClick={onBack} className="bg-cyan-600 text-white px-8 py-3 font-bold rounded-xl">Back to Home</Button>
           </div>
@@ -1748,8 +1772,17 @@ Provide your analysis.`
     <div className="relative">
       {renderPhase()}
       <button onClick={onBack} className="fixed top-4 left-4 z-50 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-full text-sm font-medium border border-slate-700">Exit</button>
+      <PromptTimelineButton onClick={() => setShowTimeline(true)} />
+      <PromptTimelineSidebar isOpen={showTimeline} onClose={() => setShowTimeline(false)} />
     </div>
   );
 };
 
-export default MemeMachine;
+// Wrap with PromptTimelineProvider
+const MemeMachineWithTimeline = (props) => (
+  <PromptTimelineProvider game="memeMachine">
+    <MemeMachine {...props} />
+  </PromptTimelineProvider>
+);
+
+export default MemeMachineWithTimeline;

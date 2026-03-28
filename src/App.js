@@ -11,6 +11,8 @@ import EnhancedHomepage, { InfoPage } from './EnhancedHomepage';
 import SpotTheFake from './SpotTheFake';
 import MemeMachine from './MemeMachine';
 import VibeCodeChallenge from './VibeCodeChallenge';
+import ModelComparison from './ModelComparison';
+import RemixMode from './RemixMode';
 import { APISettingsModal } from './APISettingsModal';
 
 
@@ -368,6 +370,30 @@ function App() {
       color: '#6b8cce'
     },
     {
+      id: 'modelComparison',
+      name: 'Model Comparison',
+      icon: '⚔️',
+      tagline: 'Same prompt, different AI models!',
+      description: 'Compare outputs from different AI models side-by-side. Vote blind, then reveal which model made which!',
+      duration: '15-20 min',
+      players: '2-20',
+      features: ['Blind comparison', 'Multi-model testing', 'Dramatic reveal', 'Educational insights'],
+      color: '#8b5cf6',
+      isBonus: true
+    },
+    {
+      id: 'remix',
+      name: 'Remix Mode',
+      icon: '🔀',
+      tagline: 'Fork, iterate, collaborate!',
+      description: 'Pick someone else\'s creation and make it your own. Best ideas build on other ideas!',
+      duration: '20-30 min',
+      players: '3-15',
+      features: ['Fork submissions', 'Creative iteration', 'Side-by-side compare', 'Remix awards'],
+      color: '#ec4899',
+      isBonus: true
+    },
+    {
       id: 'tournament',
       name: 'TOURNAMENT MODE',
       icon: '🏆',
@@ -533,6 +559,10 @@ function App() {
         return <MemeMachine {...gameProps} />;
       case 'vibeCode':
         return <VibeCodeChallenge {...gameProps} />;
+      case 'modelComparison':
+        return <ModelComparison {...gameProps} sourceData={room?.modelComparisonSource} />;
+      case 'remix':
+        return <RemixMode {...gameProps} sourceSubmissions={room?.submissions || []} sourceType={room?.remixSourceType || 'code'} />;
       default:
         return <div>Unknown game</div>;
     }

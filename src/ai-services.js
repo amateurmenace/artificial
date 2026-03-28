@@ -2,9 +2,9 @@
 // Updated December 2025: Best models for vibe coding
 
 // ============================================
-// DEFAULT API KEY (provided by facilitator)
+// DEFAULT API KEY (provided by facilitator via .env)
 // ============================================
-const DEFAULT_GEMINI_KEY = 'REDACTED_GEMINI_KEY';
+const DEFAULT_GEMINI_KEY = process.env.REACT_APP_DEFAULT_GEMINI_KEY || '';
 
 // ============================================
 // PROVIDER CONFIGURATION (March 2026)
@@ -992,6 +992,21 @@ export const getImageCapableProviders = () => {
     .map(([id, config]) => ({ id, ...config }));
 };
 
+// ============================================
+// MULTI-PROVIDER COMPARISON
+// ============================================
+
+export const multiProviderCompletion = async (messages, providers, options = {}) => {
+  const results = await Promise.allSettled(
+    providers.map(p => chatCompletion(messages, { ...options, provider: p }))
+  );
+  return providers.map((p, i) => ({
+    provider: p,
+    content: results[i].status === 'fulfilled' ? results[i].value : null,
+    error: results[i].status === 'rejected' ? results[i].reason.message : null
+  }));
+};
+
 export default {
   AI_PROVIDERS, setProvider, getProvider, getProviderConfig,
   setApiKey, getApiKey, hasApiKey, clearCredentials,
@@ -1000,5 +1015,6 @@ export default {
   critiqueMeme, suggestMemeEdits, generateMemeCaptions, generateMemeImagePrompt, brainstormMemeIdeas,
   generateInitialCode, iterateCode, polishCode, byteChat,
   analyzeImageAuthenticity, generateFakeDetectionTips,
-  testApiConnection, getModelInfo, getAllProviders, getImageCapableProviders
+  testApiConnection, getModelInfo, getAllProviders, getImageCapableProviders,
+  multiProviderCompletion
 };

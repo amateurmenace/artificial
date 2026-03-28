@@ -5,6 +5,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, Button, Badge, Alert } from './components';
 import { updateGamePhase, submitToGame, submitVote, updatePlayerScore } from './firebase';
 import { chatCompletion, hasApiKey, getProviderConfig, getModelInfo } from './ai-services';
+import { PromptTimelineProvider, usePromptTimeline, PromptTimelineSidebar, PromptTimelineButton } from './PromptTimeline';
+import DeployGuide from './DeployGuide';
 
 // ============================================
 // VILLAINS - With Proper Names!
@@ -969,6 +971,11 @@ const VibeCodeChallenge = ({ gameCode, room, userId, isHost, onBack, onOpenDashb
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [genStartTime, setGenStartTime] = useState(null);
   const [genError, setGenError] = useState(null);
+
+  // Prompt Timeline & Deploy Guide
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [showDeployGuide, setShowDeployGuide] = useState(false);
+  const { addEntry } = usePromptTimeline();
   
   const chatRef = useRef(null);
   
@@ -1760,12 +1767,20 @@ Make it WORK. Make it WEIRD. Make it WONDERFUL.`;
               </div>
               <div className="flex items-center justify-center gap-3">
                 {generatedCode && (
-                  <button
-                    onClick={downloadApp}
-                    className="bg-slate-700 hover:bg-slate-600 text-white px-6 py-2 rounded-xl font-bold text-sm"
-                  >
-                    📥 Download Your App
-                  </button>
+                  <>
+                    <button
+                      onClick={downloadApp}
+                      className="bg-slate-700 hover:bg-slate-600 text-white px-6 py-2 rounded-xl font-bold text-sm"
+                    >
+                      📥 Download Your App
+                    </button>
+                    <button
+                      onClick={() => setShowDeployGuide(true)}
+                      className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white px-6 py-2 rounded-xl font-bold text-sm"
+                    >
+                      🚀 Deploy to Web
+                    </button>
+                  </>
                 )}
                 {isHost && (
                   <button
@@ -1915,8 +1930,34 @@ Make it WORK. Make it WEIRD. Make it WONDERFUL.`;
           <AICollaborationReminder />
           
           <AnimatedByte mood="proud" message={<div><p className="mb-2">Amazing work everyone!</p><p className="text-cyan-400">You've all learned to defeat the villains by vibe coding! The key is humans guiding the vision while AI helps execute.</p></div>} />
-          
-          <div className="text-center mt-8"><Button onClick={onBack} className="bg-cyan-600 text-white px-8 py-3 font-bold rounded-xl">Back to Home</Button></div>
+
+          {/* Bonus Round Buttons */}
+          {isHost && (
+            <div className="bg-slate-800 rounded-2xl p-6 border border-purple-500/30 mb-8">
+              <h3 className="text-lg font-bold text-purple-400 mb-4 text-center">Bonus Rounds</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <button onClick={() => { window.location.hash = ''; onBack(); setTimeout(() => { const event = new CustomEvent('startBonusGame', { detail: { game: 'modelComparison', sourceData: { problem: spec.problem } } }); window.dispatchEvent(event); }, 100); }} className="p-4 bg-indigo-500/20 border border-indigo-500/40 rounded-xl text-left hover:bg-indigo-500/30 transition-colors">
+                  <div className="text-2xl mb-1">⚔️</div>
+                  <p className="text-white font-bold text-sm">Model Comparison</p>
+                  <p className="text-slate-400 text-xs">Compare AI models on the same prompt</p>
+                </button>
+                <button onClick={() => { window.location.hash = ''; onBack(); setTimeout(() => { const event = new CustomEvent('startBonusGame', { detail: { game: 'remix', sourceSubmissions: room?.submissions || [], sourceType: 'code' } }); window.dispatchEvent(event); }, 100); }} className="p-4 bg-purple-500/20 border border-purple-500/40 rounded-xl text-left hover:bg-purple-500/30 transition-colors">
+                  <div className="text-2xl mb-1">🔀</div>
+                  <p className="text-white font-bold text-sm">Remix Mode</p>
+                  <p className="text-slate-400 text-xs">Fork and remix each other's apps</p>
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="text-center mt-8 flex gap-4 justify-center flex-wrap">
+            {generatedCode && (
+              <Button onClick={() => setShowDeployGuide(true)} className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-8 py-3 font-bold rounded-xl">
+                🚀 Deploy to Web
+              </Button>
+            )}
+            <Button onClick={onBack} className="bg-cyan-600 text-white px-8 py-3 font-bold rounded-xl">Back to Home</Button>
+          </div>
         </div>
       </div>
     );
@@ -1936,8 +1977,18 @@ Make it WORK. Make it WEIRD. Make it WONDERFUL.`;
     <div className="relative">
       {renderPhase()}
       <button onClick={onBack} className="fixed top-4 left-4 z-50 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-full text-sm font-medium border border-slate-700">← Exit</button>
+      <PromptTimelineButton onClick={() => setShowTimeline(true)} />
+      <PromptTimelineSidebar isOpen={showTimeline} onClose={() => setShowTimeline(false)} />
+      <DeployGuide isOpen={showDeployGuide} onClose={() => setShowDeployGuide(false)} appCode={generatedCode} appName={spec.problem} />
     </div>
   );
 };
 
-export default VibeCodeChallenge;
+// Wrap with PromptTimelineProvider
+const VibeCodeChallengeWithTimeline = (props) => (
+  <PromptTimelineProvider game="vibeCode">
+    <VibeCodeChallenge {...props} />
+  </PromptTimelineProvider>
+);
+
+export default VibeCodeChallengeWithTimeline;

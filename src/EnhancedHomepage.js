@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './components';
+import GameShowcase from './GameShowcase';
 
 // ============================================
 // INFO PAGES CONTENT
@@ -805,87 +806,15 @@ const EnhancedHomepage = ({ onHost, onJoin, onSelectGame, onShowInfoPage, onOpen
         </div>
       </section>
       
-      {/* SWAPPED: Choose Your Adventure Section - NOW FIRST */}
-      <section className="py-20 px-4 bg-slate-50" id="games-section" ref={gamesRef}>
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-black text-slate-800 mb-4">
-              Choose Your Adventure
-            </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto">
-              Three games, three ways to understand AI. Each teaches different skills for navigating our AI-powered world.
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Spot the Fake */}
-            <div className="flex flex-col">
-              <SpotTheFakePreview onClick={() => onSelectGame('spotTheFake')} />
-              <div className="mt-5 text-center">
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Spot the Fake</h3>
-                <p className="text-slate-600 text-sm mb-4">
-                  Learn to detect AI-generated images. Explore real cases and sharpen your critical eye.
-                </p>
-                <div className="flex flex-wrap justify-center gap-2 mb-3">
-                  {['Detection', 'Ethics', 'Critical Thinking'].map(tag => (
-                    <span key={tag} className="px-3 py-1 bg-teal-100 text-teal-700 rounded-full text-xs font-medium">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center justify-center gap-4 text-xs text-slate-500">
-                  <span>⏱ 30-45 min</span>
-                  <span>👥 2-20 players</span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Meme Machine */}
-            <div className="flex flex-col">
-              <MemeMachinePreview onClick={() => onSelectGame('memeMachine')} />
-              <div className="mt-5 text-center">
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Meme Machine</h3>
-                <p className="text-slate-600 text-sm mb-4">
-                  Create advocacy memes with AI help. Get critique, iterate, and compete for virality!
-                </p>
-                <div className="flex flex-wrap justify-center gap-2 mb-3">
-                  {['AI Art', 'Prompting', 'Creativity'].map(tag => (
-                    <span key={tag} className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center justify-center gap-4 text-xs text-slate-500">
-                  <span>⏱ 45-60 min</span>
-                  <span>👥 3-20 players</span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Vibe Code Challenge */}
-            <div className="flex flex-col">
-              <VibeCodePreview onClick={() => onSelectGame('vibeCode')} />
-              <div className="mt-5 text-center">
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Vibe Code Challenge</h3>
-                <p className="text-slate-600 text-sm mb-4">
-                  Build real apps by describing them. AI writes the code — you guide the vision!
-                </p>
-                <div className="flex flex-wrap justify-center gap-2 mb-3">
-                  {['No Code', 'App Building', 'Prompting'].map(tag => (
-                    <span key={tag} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center justify-center gap-4 text-xs text-slate-500">
-                  <span>⏱ 45-60 min</span>
-                  <span>👥 2-15 players</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Game Showcase - Detailed sections for all games */}
+      <div id="games-section" ref={gamesRef}>
+        <GameShowcase
+          onSelectGame={onSelectGame}
+          SpotTheFakePreview={SpotTheFakePreview}
+          MemeMachinePreview={MemeMachinePreview}
+          VibeCodePreview={VibeCodePreview}
+        />
+      </div>
       
       {/* SWAPPED: How It Works Section - NOW SECOND - Modern Design without emojis */}
       <section className="py-20 px-4 bg-white" id="how-it-works">
