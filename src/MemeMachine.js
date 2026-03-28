@@ -2,8 +2,9 @@
 // Build, Learn Prompting, Defeat Slop, Iterate, React, Vote, Go Viral!
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, Button, Badge, Alert } from './components';
-import { updateGamePhase, submitToGame, submitVote, updatePlayerScore } from './firebase';
+import { Card, Button, Badge, Alert, ShareableResultCard, CollaborationBar } from './components';
+import { playWhoosh, playCelebration } from './sounds';
+import { updateGamePhase, submitToGame, submitVote, updatePlayerScore, updatePlayerStatus } from './firebase';
 import { chatCompletion, generateImage, hasApiKey, getProviderForGame, getApiKey } from './ai-services';
 import { PromptTimelineProvider, usePromptTimeline, PromptTimelineSidebar, PromptTimelineButton } from './PromptTimeline';
 
@@ -566,6 +567,15 @@ const AwardCard = ({ award, winner }) => (
 const MemeMachine = ({ gameCode, room, userId, isHost, onBack, onOpenDashboard }) => {
   // Build state
   const [stage, setStage] = useState('intro');
+
+  // Live collaboration: send stage progress to other players
+  useEffect(() => {
+    if (gameCode && userId && room?.phase === 'build') {
+      const stageNames = { intro: 'Starting', cause: 'Choosing cause', concept: 'Writing concept', styleSetup: 'Setting style', enhance: 'Enhancing prompt', generate: 'Generating image', feedback: 'Getting feedback', caption: 'Writing caption', finalize: 'Finalizing', submitted: 'Done!' };
+      updatePlayerStatus(gameCode, userId, { currentStep: stageNames[stage] || stage, typing: false }).catch(() => {});
+    }
+  }, [stage, gameCode, userId, room?.phase]);
+
   const [selectedIssue, setSelectedIssue] = useState('');
   const [customIssue, setCustomIssue] = useState('');
   const [visualConcept, setVisualConcept] = useState('');
@@ -658,8 +668,9 @@ const MemeMachine = ({ gameCode, room, userId, isHost, onBack, onOpenDashboard }
       setSlopMessage(messages[Math.floor(Math.random() * messages.length)]);
       setSlopTips(failedChecks.slice(0, 3).map(c => c.tip));
       setShowSlop(true);
+      playWhoosh();
     }
-    
+
     return newSlopLevel;
   };
   
@@ -1198,6 +1209,7 @@ Provide your analysis.`
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 md:p-6">
       <FloatingParticles count={15} />
       <SenorSlop show={showSlop} message={slopMessage} slopTips={slopTips} onDefeat={() => setShowSlop(false)} />
+      <CollaborationBar room={room} currentUserId={userId} />
       
       <div className="max-w-6xl mx-auto relative z-10">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -1307,24 +1319,24 @@ Provide your analysis.`
                 {/* Style Selection */}
                 <div className="bg-slate-800/80 rounded-2xl p-5 border border-slate-700">
                   <h4 className="text-white font-bold mb-3">Art Style</h4>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {IMAGE_STYLES.map(style => (
                       <button key={style.id} onClick={() => setSelectedStyle(style.id)}
-                        className={`p-3 rounded-xl text-center transition-all ${selectedStyle === style.id ? 'bg-cyan-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                        className={`p-3 rounded-xl text-center transition-all min-h-[56px] ${selectedStyle === style.id ? 'bg-cyan-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
                         <div className="text-2xl mb-1">{style.emoji}</div>
                         <div className="text-xs font-medium">{style.name}</div>
                       </button>
                     ))}
                   </div>
                 </div>
-                
+
                 {/* Mood Selection */}
                 <div className="bg-slate-800/80 rounded-2xl p-5 border border-slate-700">
                   <h4 className="text-white font-bold mb-3">Emotional Mood</h4>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {MOOD_OPTIONS.map(mood => (
                       <button key={mood.id} onClick={() => setSelectedMood(mood.id)}
-                        className={`p-3 rounded-xl text-center transition-all ${selectedMood === mood.id ? 'bg-amber-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                        className={`p-3 rounded-xl text-center transition-all min-h-[56px] ${selectedMood === mood.id ? 'bg-amber-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
                         <div className="text-2xl mb-1">{mood.emoji}</div>
                         <div className="text-xs font-medium">{mood.name}</div>
                       </button>
@@ -1662,7 +1674,7 @@ Provide your analysis.`
               <p className="text-slate-400">Waiting for memes to be submitted...</p>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-8">
               {memes.map((meme, i) => (
                 <MemeCard 
                   key={i} 
@@ -1701,9 +1713,9 @@ Provide your analysis.`
     const awards = calculateAwards();
     const players = Object.values(room?.players || {}).sort((a, b) => (b.votes || 0) - (a.votes || 0));
     const memes = getMemes();
-    
+
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 overflow-y-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 overflow-y-auto" ref={(el) => { if (el) playCelebration(); }}>
         <FloatingParticles count={40} />
         <div className="max-w-4xl mx-auto py-8 relative z-10">
           <div className="text-center mb-8">
@@ -1774,7 +1786,10 @@ Provide your analysis.`
             </div>
           )}
 
-          <div className="text-center mt-8">
+          <div className="mt-8">
+            <ShareableResultCard playerName={room?.players?.find(p => p.id === userId)?.name} gameName="Meme Machine" score={room?.players?.find(p => p.id === userId)?.score || 0} award={awards.mostViral === room?.players?.find(p => p.id === userId)?.name ? 'Most Viral' : null} />
+          </div>
+          <div className="text-center mt-6">
             <Button onClick={onBack} className="bg-cyan-600 text-white px-8 py-3 font-bold rounded-xl">Back to Home</Button>
           </div>
         </div>

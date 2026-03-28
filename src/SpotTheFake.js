@@ -2,7 +2,8 @@
 // All rounds work: Real vs AI, Edited, Ethics, Legal, Werewolf, Quiz
 
 import React, { useState, useEffect } from 'react';
-import { Button } from './components';
+import { Button, useKeyboardShortcuts, ShareableResultCard } from './components';
+import { playDing, playTick, playCelebration } from './sounds';
 import { updateGamePhase, updatePlayerScore, submitToGame, submitVote } from './firebase';
 import { round1Pairs, round2Pairs, getShuffledPairs } from './image-database';
 import { educationalContent, getDiscussionPrompts, getQuizQuestions } from './educational-content';
@@ -166,6 +167,14 @@ const SpotTheFake = ({ gameCode, room, userId, isHost, onBack, onOpenDashboard }
   const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
   const [quizAnswer, setQuizAnswer] = useState(null);
   const [showQuizResult, setShowQuizResult] = useState(false);
+
+  // Keyboard shortcuts for image selection
+  useKeyboardShortcuts({
+    'ArrowLeft': () => { if (!showResult && !showTip) handleChoice('left'); },
+    'ArrowRight': () => { if (!showResult && !showTip) handleChoice('right'); },
+    '1': () => { if (!showResult && !showTip) handleChoice('left'); },
+    '2': () => { if (!showResult && !showTip) handleChoice('right'); },
+  });
   
   const currentPair = pairs[currentPairIndex];
   const phase = room?.phase || 'lobby';
@@ -239,6 +248,7 @@ const SpotTheFake = ({ gameCode, room, userId, isHost, onBack, onOpenDashboard }
       setTimeLeft(prev => {
         if (prev <= 1) {
           setTimerActive(false);
+          playDing();
           if (!showResult && !showTip && currentPair) {
             setShowResult(true);
             setStreak(0);
@@ -246,6 +256,7 @@ const SpotTheFake = ({ gameCode, room, userId, isHost, onBack, onOpenDashboard }
           }
           return 0;
         }
+        if (prev <= 10) playTick();
         return prev - 1;
       });
     }, 1000);
@@ -715,9 +726,9 @@ const SpotTheFake = ({ gameCode, room, userId, isHost, onBack, onOpenDashboard }
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {players.map(p => (
                 <button key={p.id} onClick={() => handleWerewolfVote(p.id)} disabled={!!werewolfVote}
-                  className={`p-4 rounded-xl transition-all ${werewolfVote === p.id ? 'bg-cyan-500 text-white' : 'bg-slate-700 text-white hover:bg-slate-600'} ${werewolfVote ? 'opacity-50' : ''}`}>
+                  className={`p-4 rounded-xl transition-all min-h-[64px] ${werewolfVote === p.id ? 'bg-cyan-500 text-white' : 'bg-slate-700 text-white hover:bg-slate-600'} ${werewolfVote ? 'opacity-50' : ''}`}>
                   <div className="text-2xl mb-1">👤</div>
-                  <div className="font-bold">{p.name}</div>
+                  <div className="font-bold text-sm sm:text-base">{p.name}</div>
                 </button>
               ))}
             </div>
@@ -785,7 +796,7 @@ const SpotTheFake = ({ gameCode, room, userId, isHost, onBack, onOpenDashboard }
   const renderResults = () => {
     const players = Object.values(room?.players || {}).sort((a, b) => (b.score || 0) - (a.score || 0));
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 overflow-y-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 overflow-y-auto" ref={(el) => { if (el) playCelebration(); }}>
         <FloatingParticles count={40} />
         <div className="max-w-2xl mx-auto py-8 relative z-10">
           <div className="text-center mb-8"><div className="text-7xl mb-4">🏆</div><h1 className="text-4xl font-black text-white mb-2">FINAL RESULTS</h1></div>
@@ -798,7 +809,10 @@ const SpotTheFake = ({ gameCode, room, userId, isHost, onBack, onOpenDashboard }
             ))}
           </div>
           <ByteHost message={<div><p className="mb-2">Congratulations! You've learned:</p><ul className="text-sm text-slate-300 space-y-1"><li>• How to detect AI images</li><li>• Ethical considerations</li><li>• Legal implications</li><li>• Media literacy</li></ul></div>} mood="proud" />
-          <div className="text-center mt-8"><Button onClick={onBack} className="bg-cyan-600 text-white px-8 py-3 font-bold rounded-xl">Back to Home</Button></div>
+          <div className="mt-8">
+            <ShareableResultCard playerName={room?.players?.find(p => p.id === userId)?.name} gameName="Spot the Fake" score={score} award={players[0]?.id === userId ? 'Truth Detective' : null} />
+          </div>
+          <div className="text-center mt-6"><Button onClick={onBack} className="bg-cyan-600 text-white px-8 py-3 font-bold rounded-xl">Back to Home</Button></div>
         </div>
       </div>
     );

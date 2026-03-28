@@ -749,14 +749,14 @@ const EnhancedHomepage = ({ onHost, onJoin, onSelectGame, onShowInfoPage, onOpen
               <div className="flex items-center gap-4 mb-8">
                 <PixelByte size={80} />
                 <div>
-                  <h1 className="text-5xl md:text-7xl font-black tracking-tight">
+                  <h1 className="text-3xl sm:text-5xl md:text-7xl font-black tracking-tight">
                     ARTIFICIAL
                   </h1>
-                  <p className="text-teal-300 font-semibold text-xl md:text-2xl">Learn AI by Playing</p>
+                  <p className="text-teal-300 font-semibold text-base sm:text-xl md:text-2xl">Learn AI by Playing</p>
                 </div>
               </div>
               
-              <p className="text-2xl md:text-3xl text-white/80 mb-10 leading-relaxed">
+              <p className="text-lg sm:text-2xl md:text-3xl text-white/80 mb-10 leading-relaxed">
                 Five free multiplayer games that teach you to detect AI content, compare AI models,
                 create and advocate for your community with AI tools, and build and deploy real, functioning
                 apps without coding. Perfect for classrooms, workshops, and playful minds.

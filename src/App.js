@@ -5,7 +5,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { auth, signInAnon, createGameRoom, joinGameRoom, subscribeToRoom, updateGamePhase } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { setApiKey, getApiKey, hasApiKey, setProvider, getProvider, AI_PROVIDERS, getProviderConfig } from './ai-services';
-import { Logo, Button, Input, Modal, Alert } from './components';
+import { Logo, Button, Input, Modal, Alert, SoundToggle } from './components';
+import { initAudio } from './sounds';
 import { FacilitatorDashboard, ProjectorDisplay } from './FacilitatorDashboard';
 import EnhancedHomepage, { InfoPage } from './EnhancedHomepage';
 import SpotTheFake from './SpotTheFake';
@@ -13,6 +14,7 @@ import MemeMachine from './MemeMachine';
 import VibeCodeChallenge from './VibeCodeChallenge';
 import ModelComparison from './ModelComparison';
 import RemixMode from './RemixMode';
+import AccessibilityChallenge from './AccessibilityChallenge';
 import { APISettingsModal } from './APISettingsModal';
 
 
@@ -394,6 +396,18 @@ function App() {
       isBonus: true
     },
     {
+      id: 'accessibility',
+      name: 'Accessibility Challenge',
+      icon: '♿',
+      tagline: 'Make AI outputs work for everyone!',
+      description: 'Evaluate AI outputs for accessibility: color contrast, alt text, ARIA labels, and keyboard navigation.',
+      duration: '10-15 min',
+      players: '1-20',
+      features: ['WCAG basics', 'Color contrast', 'Alt text mastery', 'ARIA & keyboard nav'],
+      color: '#8b5cf6',
+      isBonus: true
+    },
+    {
       id: 'tournament',
       name: 'TOURNAMENT MODE',
       icon: '🏆',
@@ -563,6 +577,8 @@ function App() {
         return <ModelComparison {...gameProps} sourceData={room?.modelComparisonSource} />;
       case 'remix':
         return <RemixMode {...gameProps} sourceSubmissions={room?.submissions || []} sourceType={room?.remixSourceType || 'code'} />;
+      case 'accessibility':
+        return <AccessibilityChallenge {...gameProps} />;
       default:
         return <div>Unknown game</div>;
     }
@@ -580,7 +596,7 @@ function App() {
   
   // Home view
   return (
-    <div className="min-h-screen bg-[#f5f3ef]">
+    <div className="min-h-screen bg-[#f5f3ef]" onClick={() => initAudio()} onTouchStart={() => initAudio()}>
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-b border-[#e2e0dc] px-4 py-3 z-50">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
@@ -588,7 +604,8 @@ function App() {
           <div className="flex items-center gap-4">
             <a href="#about" className="text-sm text-[#6b7c74] hover:text-[#3d5a4c] hidden md:block">About</a>
             <a href="#faq" className="text-sm text-[#6b7c74] hover:text-[#3d5a4c] hidden md:block">FAQ</a>
-            <button 
+            <SoundToggle />
+            <button
               onClick={() => setShowApiModal(true)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
                 hasApiKey() 

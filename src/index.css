@@ -199,6 +199,45 @@ pre {
   }
 }
 
+/* Touch-friendly sizing (Apple HIG: 44px minimum) */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Mobile game layout helpers */
+@media (max-width: 640px) {
+  .mobile-stack {
+    flex-direction: column !important;
+  }
+  .mobile-full {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .mobile-p-3 {
+    padding: 0.75rem !important;
+  }
+  .mobile-text-sm {
+    font-size: 0.875rem !important;
+  }
+}
+
+/* Prevent double-tap zoom on interactive elements */
+button, a, [role="button"] {
+  touch-action: manipulation;
+}
+
+/* Scroll snap for image comparison on mobile */
+.scroll-snap-x {
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-snap-x > * {
+  scroll-snap-align: center;
+  flex-shrink: 0;
+}
+
 /* Details/summary styling for FAQ */
 details summary {
   cursor: pointer;

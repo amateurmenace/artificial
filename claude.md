@@ -84,12 +84,14 @@ src/
 ├── VibeCodeChallenge.js      # Vibe Code game (villains, voting, awards)
 ├── ModelComparison.js        # AI Model Comparison bonus game (blind testing)
 ├── RemixMode.js              # Remix Mode bonus game (fork & iterate)
+├── AccessibilityChallenge.js # Accessibility challenge bonus game (WCAG education)
 ├── PromptTimeline.js         # Shared prompt history/replay sidebar
 ├── DeployGuide.js            # GitHub Pages deployment wizard
 ├── FacilitatorDashboard.js   # Host dashboard, projector display
 ├── components.js             # Shared UI components
 ├── firebase.js               # Firebase config, real-time subscriptions
-├── ai-services.js            # AI API integrations (OpenAI, Gemini, Claude)
+├── ai-services.js            # AI API integrations (OpenAI, Gemini, Claude) + retry/error handling
+├── sounds.js                 # Web Audio API sound effects (no dependencies)
 ├── educational-content.js    # Educational text content
 ├── image-database.js         # Real/AI image pairs for Spot the Fake
 ├── index.js                  # React entry point
@@ -188,6 +190,23 @@ games/
 10. **Navigation** - Logo is clickable (returns home) across all views. Info pages have fixed top nav bar. Consistent exit + dashboard buttons across all games
 11. **Top Navigation** - Fixed ARTIFICIAL nav bar added to Info pages with Logo link home
 
+## Recent Changes (v13)
+
+1. **Error Handling Infrastructure** - `withRetry()` wrapper with exponential backoff for all AI calls. `formatUserError()` maps raw API errors to friendly messages ("AI is busy, trying again..."). `AIErrorBanner` component for consistent error display.
+2. **Sound Effects System** - Web Audio API-based sounds (no npm deps): `playDing()` for voting/transitions, `playWhoosh()` for villain appearances, `playCelebration()` for awards, `playTick()` for timer countdown. Haptic feedback on mobile. `SoundToggle` mute button in header. New file: `src/sounds.js`
+3. **Timer Sync & Auto-Advance** - `startTimer()` and `getTimerRemaining()` in firebase.js use server timestamps so all players see the same timer. Shared `BigTimer` and `SyncedTimer` components extracted to components.js.
+4. **Mobile Responsiveness Pass** - Touch-friendly 44px minimum targets on all buttons. `touch-action: manipulation` prevents double-tap zoom. Responsive grids (`grid-cols-2 sm:grid-cols-3`) for style/mood selectors. Mobile hero text scaling. Scroll-snap CSS utilities for image comparison.
+5. **Prompt Templates for Model Comparison** - `PROMPT_TEMPLATES` constant with 2-3 curated prompts per comparison type. Template pill buttons below prompt input ("Or try: Todo App, Weather Dashboard, Calculator").
+6. **Shareable Results Cards** - Canvas-based PNG generation for individual game results (reuses HumanAwardCertificate pattern). Added to results phase of all 3 core games.
+7. **Keyboard Shortcuts** - `useKeyboardShortcuts()` hook in components.js. ArrowLeft/ArrowRight for SpotTheFake image selection. Escape closes all modals.
+8. **Accessibility Challenge Round** - New bonus game (`src/AccessibilityChallenge.js`) with 8 challenges across 4 categories: color contrast, alt text, ARIA labels, keyboard navigation. Awards: Accessibility Champion, A11y Advocate, Inclusion Learner.
+9. **Live Collaboration Mode** - `updatePlayerStatus()` in firebase.js writes typing/progress/step to `playerStatus` map field. `CollaborationBar` component shows other players' real-time progress during build phases. Integrated in VibeCode and MemeMachine.
+10. **Session Replay/Export** - "Export Session" button in FacilitatorDashboard generates downloadable HTML report with leaderboard, submissions, and summary. Uses Blob + createObjectURL pattern.
+
+## Previous Changes (v12)
+
+(moved from above — see v12 section)
+
 ## Previous Changes (v11)
 
 1. **Default Gemini API Key** - Facilitator key hardcoded as fallback so users don't need their own
@@ -276,16 +295,24 @@ User-configured keys are stored in localStorage:
 - [x] Nano Banana image generation ✓
 - [x] Vibe Code UX clarity improvements ✓
 - [x] Download app button ✓
-- [ ] Mobile responsiveness improvements
-- [ ] Offline mode / better error handling for API failures
+- [x] Mobile responsiveness improvements ✓ (v13)
+- [x] Better error handling for API failures ✓ (v13 - retry logic + friendly messages)
 - [ ] More image pairs for Spot the Fake
 - [ ] Localization support
-- [ ] Live collaboration mode (see each other's progress)
+- [x] Live collaboration mode (see each other's progress) ✓ (v13)
 - [x] AI model comparison round ✓
 - [x] Prompt history/replay timeline ✓
 - [x] "Remix" mode (fork others' apps) ✓
-- [ ] Accessibility challenge round
+- [x] Accessibility challenge round ✓ (v13)
 - [x] Real-world deployment (GitHub Pages) ✓
+- [x] Sound effects & haptic feedback ✓ (v13)
+- [x] Timer sync across players ✓ (v13)
+- [x] Pre-built prompt templates for Model Comparison ✓ (v13)
+- [x] Shareable results cards ✓ (v13)
+- [x] Keyboard shortcuts ✓ (v13)
+- [x] Session replay/export ✓ (v13)
+- [ ] Offline mode / graceful degradation
+- [ ] More accessibility challenge content
 
 ---
 
@@ -299,4 +326,4 @@ When starting a new session:
 
 ---
 
-*Last updated: March 28, 2026 (v12)*
+*Last updated: March 28, 2026 (v13)*

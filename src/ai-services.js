@@ -547,6 +547,58 @@ const ollamaChat = async (messages, options = {}) => {
 };
 
 // ============================================
+// ERROR HANDLING & RETRY INFRASTRUCTURE
+// ============================================
+
+const isRetryableError = (error) => {
+  const msg = error.message?.toLowerCase() || '';
+  const status = error.status || error.statusCode;
+  // Retry on rate limits, server errors, and network failures
+  if (status === 429 || status >= 500) return true;
+  if (msg.includes('rate limit') || msg.includes('too many requests')) return true;
+  if (msg.includes('overloaded') || msg.includes('capacity')) return true;
+  if (msg.includes('timeout') || msg.includes('econnreset')) return true;
+  if (error instanceof TypeError && msg.includes('fetch')) return true; // Network failure
+  return false;
+};
+
+const withRetry = async (fn, maxRetries = 2, delayMs = 1500) => {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxRetries && isRetryableError(error)) {
+        const delay = delayMs * Math.pow(2, attempt);
+        console.log(`[Retry] Attempt ${attempt + 1} failed, retrying in ${delay}ms...`, error.message);
+        await new Promise(r => setTimeout(r, delay));
+      } else {
+        break;
+      }
+    }
+  }
+  throw lastError;
+};
+
+export const formatUserError = (error) => {
+  const msg = error.message?.toLowerCase() || '';
+  if (msg.includes('rate limit') || msg.includes('too many requests') || msg.includes('429'))
+    return 'AI is busy right now. Please wait a moment and try again.';
+  if (msg.includes('api key') || msg.includes('unauthorized') || msg.includes('401') || msg.includes('invalid'))
+    return 'Your API key seems invalid. Check your key in Settings.';
+  if (msg.includes('blocked') || msg.includes('safety') || msg.includes('content policy') || msg.includes('recitation'))
+    return 'That prompt was blocked by safety filters. Try rewording it.';
+  if (msg.includes('fetch') || msg.includes('network') || msg.includes('econnreset') || msg.includes('timeout'))
+    return 'Could not reach the AI service. Check your internet connection.';
+  if (msg.includes('empty') || msg.includes('no candidates'))
+    return 'AI returned an empty response. Try again or simplify your prompt.';
+  if (msg.includes('overloaded') || msg.includes('capacity'))
+    return 'AI service is overloaded. Trying again shortly...';
+  return 'Something went wrong with the AI. Please try again.';
+};
+
+// ============================================
 // UNIFIED API
 // ============================================
 
@@ -574,18 +626,22 @@ export const chatCompletion = async (messages, options = {}) => {
   console.log(`[chatCompletion] Capped maxTokens: ${cappedOptions.maxTokens}`);
   
   try {
-    switch (provider) {
-      case 'openai': return await openaiChat(messages, cappedOptions);
-      case 'anthropic': return await claudeChat(messages, cappedOptions);
-      case 'gemini': 
-      case 'gemini_pro': return await geminiChat(messages, { ...cappedOptions, providerId: provider });
-      case 'groq': return await groqChat(messages, cappedOptions);
-      case 'ollama': return await ollamaChat(messages, cappedOptions);
-      default: throw new Error(`Unknown provider: ${provider}`);
-    }
+    return await withRetry(async () => {
+      switch (provider) {
+        case 'openai': return await openaiChat(messages, cappedOptions);
+        case 'anthropic': return await claudeChat(messages, cappedOptions);
+        case 'gemini':
+        case 'gemini_pro': return await geminiChat(messages, { ...cappedOptions, providerId: provider });
+        case 'groq': return await groqChat(messages, cappedOptions);
+        case 'ollama': return await ollamaChat(messages, cappedOptions);
+        default: throw new Error(`Unknown provider: ${provider}`);
+      }
+    });
   } catch (error) {
     console.error(`[chatCompletion] ${provider} failed:`, error.message);
-    throw error;
+    const friendlyError = new Error(formatUserError(error));
+    friendlyError.originalError = error;
+    throw friendlyError;
   }
 };
 
@@ -667,13 +723,22 @@ export const generateImage = async (prompt, size = '1024x1024', preferredProvide
     }
   }
 
-  switch (provider) {
-    case 'openai': return openaiImage(prompt, size);
-    case 'gemini':
-    case 'gemini_pro': return geminiImage(prompt, size);
-    case 'stability': return stabilityImage(prompt, size);
-    case 'together': return togetherImage(prompt, size);
-    default: throw new Error(`Image generation not supported for ${provider}.`);
+  try {
+    return await withRetry(async () => {
+      switch (provider) {
+        case 'openai': return openaiImage(prompt, size);
+        case 'gemini':
+        case 'gemini_pro': return geminiImage(prompt, size);
+        case 'stability': return stabilityImage(prompt, size);
+        case 'together': return togetherImage(prompt, size);
+        default: throw new Error(`Image generation not supported for ${provider}.`);
+      }
+    });
+  } catch (error) {
+    console.error(`[generateImage] ${provider} failed:`, error.message);
+    const friendlyError = new Error(formatUserError(error));
+    friendlyError.originalError = error;
+    throw friendlyError;
   }
 };
 
@@ -1096,7 +1161,7 @@ export const multiProviderCompletion = async (messages, providers, options = {})
 export default {
   AI_PROVIDERS, setProvider, getProvider, getProviderConfig,
   setApiKey, getApiKey, hasApiKey, clearCredentials,
-  chatCompletion, generateImage,
+  chatCompletion, generateImage, formatUserError,
   getGameModels, setGameModel, getProviderForGame,
   critiqueMeme, suggestMemeEdits, generateMemeCaptions, generateMemeImagePrompt, brainstormMemeIdeas,
   generateInitialCode, iterateCode, polishCode, byteChat,

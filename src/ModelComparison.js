@@ -21,6 +21,34 @@ const COMPARISON_TYPES = [
   { id: 'explain', name: 'AI Explanation', icon: '🧠', description: 'Compare how models explain concepts', requiresChat: true },
 ];
 
+const PROMPT_TEMPLATES = {
+  code: [
+    { name: 'Todo App', prompt: 'Build a todo app with local storage, animations, and dark mode' },
+    { name: 'Weather Dashboard', prompt: 'Create a weather dashboard that shows a 5-day forecast with animated weather icons' },
+    { name: 'Calculator', prompt: 'Build a scientific calculator with history and keyboard support' },
+  ],
+  image: [
+    { name: 'Cyberpunk City', prompt: 'A cyberpunk city at sunset with flying cars and neon signs reflecting in rain puddles' },
+    { name: 'Underwater Library', prompt: 'An underwater library where fish swim between bookshelves, soft blue light filtering down' },
+    { name: 'Space Cat', prompt: 'A fluffy orange cat in an astronaut suit floating in space with Earth behind it, photorealistic' },
+  ],
+  meme: [
+    { name: 'Monday Morning', prompt: 'Write 3 viral meme captions about how Monday mornings feel at the office' },
+    { name: 'AI Takeover', prompt: 'Write 3 funny meme captions about AI replacing human jobs' },
+    { name: 'Group Projects', prompt: 'Write 3 relatable meme captions about being in a group project' },
+  ],
+  story: [
+    { name: 'Time Travel', prompt: 'Write a 200-word story about someone who can only travel 5 minutes into the past' },
+    { name: 'Last Human', prompt: 'Write a story about the last human on Earth discovering they are not alone' },
+    { name: 'AI Dreams', prompt: 'Write a story about an AI that starts dreaming and must decide if the dreams are real' },
+  ],
+  explain: [
+    { name: 'Quantum to a Kid', prompt: 'Explain quantum computing to a 10-year-old using only pizza analogies' },
+    { name: 'Neural Networks', prompt: 'Explain how neural networks learn using a cooking analogy' },
+    { name: 'Blockchain', prompt: 'Explain blockchain to someone who has never used a computer' },
+  ],
+};
+
 const EDUCATIONAL_INSIGHTS = {
   openai: { strength: 'Versatile and creative', personality: 'Tends to be detailed and structured', imageStyle: 'Photorealistic, follows prompts closely' },
   anthropic: { strength: 'Careful and nuanced', personality: 'Tends to be thorough and safety-conscious', imageStyle: 'N/A' },
@@ -545,6 +573,19 @@ const ModelComparison = ({ gameCode, room, userId, isHost, onBack, sourceData })
               <button onClick={() => setCustomPrompt(sourceData.problem)} className="mt-2 text-xs text-cyan-400 hover:underline">
                 Use prompt from previous game
               </button>
+            )}
+            {PROMPT_TEMPLATES[comparisonType?.id] && (
+              <div className="mt-3">
+                <span className="text-xs text-slate-400 mr-2">Or try:</span>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {PROMPT_TEMPLATES[comparisonType.id].map(t => (
+                    <button key={t.name} onClick={() => setCustomPrompt(t.prompt)}
+                      className="px-3 py-1.5 text-xs rounded-full bg-slate-700 text-cyan-300 hover:bg-slate-600 hover:text-cyan-200 transition-colors border border-slate-600">
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
 

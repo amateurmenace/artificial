@@ -30,11 +30,11 @@ export const Button = ({ children, variant = 'primary', size = 'md', onClick, di
     custom: '',
   };
   const sizes = {
-    xs: 'px-2 py-1 text-xs',
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-5 py-2.5 text-base',
-    lg: 'px-8 py-3 text-lg',
-    xl: 'px-10 py-4 text-xl',
+    xs: 'px-2 py-1 text-xs min-h-[32px]',
+    sm: 'px-3 py-2 text-sm min-h-[40px]',
+    md: 'px-5 py-2.5 text-base min-h-[44px]',
+    lg: 'px-8 py-3 text-lg min-h-[48px]',
+    xl: 'px-10 py-4 text-xl min-h-[52px]',
   };
   return (
     <button
@@ -115,6 +115,75 @@ export const Timer = ({ seconds, onComplete, paused = false, extension = 0 }) =>
         {mins}:{secs.toString().padStart(2, '0')}
       </div>
     </div>
+  );
+};
+
+export const BigTimer = ({ seconds, total, label, onAddTime, onSubtractTime, showControls = false }) => {
+  const mins = Math.floor(Math.max(0, seconds) / 60);
+  const secs = Math.max(0, seconds) % 60;
+  const pct = total > 0 ? (seconds / total) * 100 : 0;
+  const isLow = seconds <= 30;
+  const isWarning = seconds <= 60 && seconds > 30;
+
+  return (
+    <div className={`rounded-2xl p-6 text-center ${isLow ? 'bg-gradient-to-br from-red-600 to-red-800' : isWarning ? 'bg-gradient-to-br from-amber-500 to-orange-600' : 'bg-gradient-to-br from-slate-700 to-slate-900'} text-white`}>
+      {label && <div className="text-sm font-medium opacity-80 mb-2">{label}</div>}
+      <div className={`font-mono text-5xl sm:text-6xl font-black ${isLow ? 'animate-pulse' : ''}`}>
+        {mins}:{secs.toString().padStart(2, '0')}
+      </div>
+      <div className="w-full h-2 bg-white/20 rounded-full mt-4 overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-1000 ${isLow ? 'bg-red-300' : isWarning ? 'bg-amber-300' : 'bg-white/60'}`} style={{ width: `${pct}%` }} />
+      </div>
+      {isLow && <div className="text-xs font-bold mt-2 animate-pulse uppercase tracking-widest">Final Countdown</div>}
+      {showControls && (
+        <div className="flex gap-2 justify-center mt-3">
+          {onSubtractTime && <button onClick={onSubtractTime} className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-sm">-30s</button>}
+          {onAddTime && <button onClick={onAddTime} className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-sm">+30s</button>}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const SyncedTimer = ({ room, onComplete, label, showControls = false, onAddTime, onSubtractTime }) => {
+  const [remaining, setRemaining] = useState(0);
+  const completedRef = useRef(false);
+  const totalRef = useRef(0);
+
+  useEffect(() => {
+    completedRef.current = false;
+    totalRef.current = room?.timerDuration || 0;
+  }, [room?.timerStart, room?.timerDuration]);
+
+  useEffect(() => {
+    if (!room?.timerStart || !room?.timerDuration) return;
+
+    const tick = () => {
+      const startMs = room.timerStart?.toMillis ? room.timerStart.toMillis() : room.timerStart;
+      const elapsed = (Date.now() - startMs) / 1000;
+      const ext = room.timerExtension || 0;
+      const left = Math.max(0, Math.floor(room.timerDuration + ext - elapsed));
+      setRemaining(left);
+      if (left <= 0 && !completedRef.current) {
+        completedRef.current = true;
+        onComplete?.();
+      }
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [room?.timerStart, room?.timerDuration, room?.timerExtension, onComplete]);
+
+  return (
+    <BigTimer
+      seconds={remaining}
+      total={totalRef.current + (room?.timerExtension || 0)}
+      label={label}
+      showControls={showControls}
+      onAddTime={onAddTime}
+      onSubtractTime={onSubtractTime}
+    />
   );
 };
 
@@ -268,6 +337,47 @@ export const Alert = ({ type = 'info', children, onClose }) => {
   );
 };
 
+export const SoundToggle = () => {
+  const [muted, setMutedState] = React.useState(() => localStorage.getItem('sound_muted') === 'true');
+  const toggle = () => {
+    const next = !muted;
+    setMutedState(next);
+    localStorage.setItem('sound_muted', String(next));
+  };
+  return (
+    <button
+      onClick={toggle}
+      className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-[#e2e0dc] transition-colors text-[#6b7c74] hover:text-[#3d5a4c]"
+      title={muted ? 'Unmute sounds' : 'Mute sounds'}
+      aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
+    >
+      {muted ? '🔇' : '🔊'}
+    </button>
+  );
+};
+
+export const AIErrorBanner = ({ error, onRetry, onDismiss }) => {
+  if (!error) return null;
+  return (
+    <div role="alert" aria-live="polite" className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl p-4 flex items-start gap-3">
+      <span className="text-xl flex-shrink-0">⚠️</span>
+      <div className="flex-1 min-w-0">
+        <div className="font-medium text-sm">{error}</div>
+      </div>
+      <div className="flex gap-2 flex-shrink-0">
+        {onRetry && (
+          <button onClick={onRetry} className="px-3 py-1.5 text-xs font-medium bg-yellow-100 hover:bg-yellow-200 rounded-lg transition-colors">
+            Try Again
+          </button>
+        )}
+        {onDismiss && (
+          <button onClick={onDismiss} className="opacity-50 hover:opacity-100 text-lg font-bold leading-none">&times;</button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const ScoreBar = ({ scores, maxScore = 10 }) => (
   <div className="space-y-2">
     {Object.entries(scores).map(([label, value]) => (
@@ -300,7 +410,7 @@ export const ReactionBar = ({ reactions, onReact }) => {
         <button
           key={name}
           onClick={() => onReact(name)}
-          className="flex items-center gap-1 px-3 py-2 rounded-full border border-[#e2e0dc] hover:border-[#48a89a] hover:bg-[#48a89a]/10 hover:scale-105 transition-all"
+          className="flex items-center gap-1 px-4 py-3 sm:px-3 sm:py-2 rounded-full border border-[#e2e0dc] hover:border-[#48a89a] hover:bg-[#48a89a]/10 hover:scale-105 transition-all min-h-[44px]"
           title={label}
         >
           <span className="text-lg">{emoji}</span>
@@ -316,6 +426,13 @@ export const ReactionBar = ({ reactions, onReact }) => {
 // ============================================
 
 export const Modal = ({ isOpen, onClose, title, children, size = 'md', showClose = true }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e) => { if (e.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
   
   const sizes = {
@@ -328,7 +445,7 @@ export const Modal = ({ isOpen, onClose, title, children, size = 'md', showClose
   
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className={`bg-white rounded-2xl shadow-xl w-full ${sizes[size]} max-h-[90vh] overflow-hidden flex flex-col`}>
+      <div className={`bg-white rounded-2xl shadow-xl w-full ${sizes[size]} max-h-[95vh] overflow-hidden flex flex-col`}>
         {(title || showClose) && (
           <div className="flex justify-between items-center p-4 border-b border-[#e2e0dc]">
             {title && <h2 className="text-xl font-bold text-[#3d5a4c]">{title}</h2>}
@@ -385,6 +502,150 @@ export const Badge = ({ game, playerName, onExport }) => {
       )}
     </div>
   );
+};
+
+// ============================================
+// COLLABORATION BAR
+// ============================================
+
+export const CollaborationBar = ({ room, currentUserId }) => {
+  const playerStatus = room?.playerStatus || {};
+  const players = room?.players || [];
+  const otherStatuses = Object.entries(playerStatus)
+    .filter(([id]) => id !== currentUserId)
+    .filter(([_, status]) => Date.now() - (status.updatedAt || 0) < 30000) // Only show recent activity
+    .map(([id, status]) => {
+      const player = players.find(p => p.id === id);
+      return { id, name: player?.name || 'Player', ...status };
+    });
+
+  if (otherStatuses.length === 0) return null;
+
+  return (
+    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-72 z-40 bg-slate-800/95 backdrop-blur-sm rounded-xl border border-slate-700 p-3 shadow-lg">
+      <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">Others Working</div>
+      <div className="space-y-2 max-h-32 overflow-y-auto">
+        {otherStatuses.map(s => (
+          <div key={s.id} className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+            <span className="text-xs text-white font-medium truncate">{s.name}</span>
+            {s.typing && <span className="text-xs text-slate-400 animate-pulse">typing...</span>}
+            {s.currentStep && !s.typing && <span className="text-xs text-cyan-400">{s.currentStep}</span>}
+            {s.progress > 0 && (
+              <div className="flex-1 h-1 bg-slate-700 rounded-full overflow-hidden ml-1">
+                <div className="h-full bg-cyan-500 transition-all" style={{ width: `${s.progress}%` }} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// SHAREABLE RESULTS CARD
+// ============================================
+
+export const ShareableResultCard = ({ playerName, gameName, score, award }) => {
+  const canvasRef = useRef(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = 600, h = 400;
+    canvas.width = w;
+    canvas.height = h;
+
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, w, h);
+    bg.addColorStop(0, '#1e293b');
+    bg.addColorStop(1, '#0f172a');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    // Border
+    ctx.strokeStyle = '#22d3ee';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(12, 12, w - 24, h - 24);
+
+    // Game name
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(gameName?.toUpperCase() || 'GAME', w / 2, 55);
+
+    // Player name
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 36px sans-serif';
+    ctx.fillText(playerName || 'Player', w / 2, 110);
+
+    // Score
+    ctx.fillStyle = '#22d3ee';
+    ctx.font = 'bold 72px sans-serif';
+    ctx.fillText(String(score || 0), w / 2, 210);
+    ctx.fillStyle = '#64748b';
+    ctx.font = '16px sans-serif';
+    ctx.fillText('POINTS', w / 2, 235);
+
+    // Award
+    if (award) {
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 22px sans-serif';
+      ctx.fillText(award, w / 2, 290);
+    }
+
+    // Branding
+    ctx.fillStyle = '#475569';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('ARTIFICIAL \u2022 Games for AI Literacy', w / 2, h - 30);
+
+    setReady(true);
+  }, [playerName, gameName, score, award]);
+
+  const handleDownload = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const url = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `artificial-${(gameName || 'results').toLowerCase().replace(/\s+/g, '-')}.png`;
+    a.click();
+  };
+
+  return (
+    <div className="text-center">
+      <canvas ref={canvasRef} className="max-w-full rounded-xl border border-slate-700 mx-auto" style={{ maxHeight: 300 }} />
+      {ready && (
+        <button onClick={handleDownload} className="mt-3 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors">
+          Download Result Card
+        </button>
+      )}
+    </div>
+  );
+};
+
+// ============================================
+// KEYBOARD SHORTCUTS HOOK
+// ============================================
+
+export const useKeyboardShortcuts = (shortcuts) => {
+  useEffect(() => {
+    if (!shortcuts || Object.keys(shortcuts).length === 0) return;
+    const handler = (e) => {
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
+      const fn = shortcuts[e.key];
+      if (fn) {
+        e.preventDefault();
+        fn(e);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [shortcuts]);
 };
 
 // ============================================

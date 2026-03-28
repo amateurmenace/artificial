@@ -210,4 +210,34 @@ export const featureSubmission = async (code, submissionId) => {
   await updateDoc(roomRef, { featuredSubmission: submissionId });
 };
 
+// Timer sync - uses server timestamp so all clients compute the same remaining time
+export const startTimer = async (code, durationSeconds) => {
+  const roomRef = doc(db, 'gameRooms', code);
+  await updateDoc(roomRef, {
+    timerStart: serverTimestamp(),
+    timerDuration: durationSeconds,
+    timerExtension: 0
+  });
+};
+
+// Pure function: compute remaining seconds from room data
+export const getTimerRemaining = (room) => {
+  if (!room?.timerStart || !room?.timerDuration) return 0;
+  const startMs = room.timerStart?.toMillis ? room.timerStart.toMillis() : room.timerStart;
+  const elapsed = (Date.now() - startMs) / 1000;
+  const extension = room.timerExtension || 0;
+  return Math.max(0, Math.floor(room.timerDuration + extension - elapsed));
+};
+
+// Live collaboration - update player status without modifying players array
+export const updatePlayerStatus = async (code, playerId, status) => {
+  const roomRef = doc(db, 'gameRooms', code);
+  await updateDoc(roomRef, {
+    [`playerStatus.${playerId}`]: {
+      ...status,
+      updatedAt: Date.now()
+    }
+  });
+};
+
 export { onAuthStateChanged, arrayRemove, arrayUnion };

@@ -2,8 +2,9 @@
 // Battle villains, build apps, learn AI prompt engineering!
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, Button, Badge, Alert } from './components';
-import { updateGamePhase, submitToGame, submitVote, updatePlayerScore } from './firebase';
+import { Card, Button, Badge, Alert, ShareableResultCard, CollaborationBar } from './components';
+import { playWhoosh, playCelebration } from './sounds';
+import { updateGamePhase, submitToGame, submitVote, updatePlayerScore, updatePlayerStatus } from './firebase';
 import { chatCompletion, hasApiKey, getProviderConfig, getModelInfo } from './ai-services';
 import { PromptTimelineProvider, usePromptTimeline, PromptTimelineSidebar, PromptTimelineButton } from './PromptTimeline';
 import DeployGuide from './DeployGuide';
@@ -950,6 +951,15 @@ const VibeCodeChallenge = ({ gameCode, room, userId, isHost, onBack, onOpenDashb
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Live collaboration: send step progress to other players
+  useEffect(() => {
+    if (gameCode && userId && room?.phase === 'build') {
+      const stepName = STEPS[currentStep]?.name || '';
+      const progress = Math.round((currentStep / STEPS.length) * 100);
+      updatePlayerStatus(gameCode, userId, { currentStep: stepName, progress, typing: false }).catch(() => {});
+    }
+  }, [currentStep, gameCode, userId, room?.phase]);
   const [spec, setSpec] = useState({ problem: '', users: '', features: '', twist: '', style: '' });
   const [generatedCode, setGeneratedCode] = useState('');
   const [codeStream, setCodeStream] = useState('');
@@ -1064,6 +1074,7 @@ const VibeCodeChallenge = ({ gameCode, room, userId, isHost, onBack, onOpenDashb
     
     // Show Slop attack!
     setShowSlopAttack(true);
+    playWhoosh();
     
     setIsProcessing(true);
     setAiUsageCount(prev => prev + 1);
@@ -1658,6 +1669,8 @@ Make it WORK. Make it WEIRD. Make it WONDERFUL.`;
     <div className="h-screen bg-slate-900 flex flex-col">
       {/* Slop Attack Overlay */}
       <SlopAttack show={showSlopAttack} onComplete={() => setShowSlopAttack(false)} />
+      {/* Live collaboration */}
+      <CollaborationBar room={room} currentUserId={userId} />
       
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800">
@@ -1898,9 +1911,9 @@ Make it WORK. Make it WEIRD. Make it WONDERFUL.`;
   const renderResults = () => {
     const awards = calculateAwards();
     const players = Object.values(room?.players || {}).sort((a, b) => (b.votes || 0) - (a.votes || 0));
-    
+
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 overflow-y-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 overflow-y-auto" ref={(el) => { if (el) playCelebration(); }}>
         <FloatingParticles count={40} />
         <div className="max-w-4xl mx-auto py-8 relative z-10">
           <div className="text-center mb-8"><div className="text-8xl mb-4">🏆</div><h1 className="text-4xl font-black text-white mb-2">AWARDS</h1></div>
@@ -1957,6 +1970,9 @@ Make it WORK. Make it WEIRD. Make it WONDERFUL.`;
               </Button>
             )}
             <Button onClick={onBack} className="bg-cyan-600 text-white px-8 py-3 font-bold rounded-xl">Back to Home</Button>
+          </div>
+          <div className="mt-8">
+            <ShareableResultCard playerName={room?.players?.find(p => p.id === userId)?.name} gameName="Vibe Code Challenge" score={room?.players?.find(p => p.id === userId)?.score || 0} award={players[0]?.id === userId ? 'Best Vibe Coder' : null} />
           </div>
         </div>
       </div>
