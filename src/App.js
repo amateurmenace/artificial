@@ -602,8 +602,8 @@ function App() {
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <Logo onClick={handleBackToHome} />
           <div className="flex items-center gap-4">
-            <a href="#about" className="text-sm text-[#6b7c74] hover:text-[#3d5a4c] hidden md:block">About</a>
-            <a href="#faq" className="text-sm text-[#6b7c74] hover:text-[#3d5a4c] hidden md:block">FAQ</a>
+            <button onClick={() => setCurrentInfoPage('about-artificial')} className="text-sm text-[#6b7c74] hover:text-[#3d5a4c] hidden md:block">About</button>
+            <button onClick={() => setCurrentInfoPage('faqs')} className="text-sm text-[#6b7c74] hover:text-[#3d5a4c] hidden md:block">FAQs</button>
             <SoundToggle />
             <button
               onClick={() => setShowApiModal(true)}

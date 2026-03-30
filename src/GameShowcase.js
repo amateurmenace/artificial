@@ -319,114 +319,57 @@ const GameCard = ({ game, isSelected, onClick }) => (
 );
 
 // ============================================
-// LARGE ANIMATED PREVIEW FOR DETAIL PANEL
+// STATIC PREVIEW FOR DETAIL PANEL (no animation)
 // ============================================
 
 const DetailPreview = ({ type, color }) => {
-  const [frame, setFrame] = useState(0);
-  useEffect(() => {
-    const interval = setInterval(() => setFrame(f => (f + 1) % 5), 1800);
-    return () => clearInterval(interval);
-  }, []);
-
   if (type === 'spotTheFake') {
-    // Use real Unsplash photos from the game's image database
-    const items = [
-      { url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face', label: 'Portrait A', isAI: false },
-      { url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&crop=face', label: 'Portrait B', isAI: true },
-      { url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200&h=200&fit=crop', label: 'Cat Photo', isAI: false },
-      { url: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=200&h=200&fit=crop', label: 'Cat Photo 2', isAI: true },
-    ];
-    const idx = frame % 4;
-    const item = items[idx];
-    const scanProg = frame < 3 ? frame * 33 : undefined;
     return (
       <div className="bg-slate-900/80 rounded-xl p-4 border border-slate-700">
-        <div className="flex items-center gap-4 mb-3">
-          <div className="flex-1">
-            <div className={`relative rounded-lg overflow-hidden border-2 transition-all ${frame >= 3 ? 'border-teal-400 shadow-lg shadow-teal-500/20' : 'border-slate-600'}`}>
-              <img src={item.url} alt={item.label} className="w-full h-20 object-cover" loading="lazy" />
-              {scanProg !== undefined && (
-                <div className="absolute left-0 right-0 h-0.5 bg-teal-400/80 shadow-lg shadow-teal-400/50" style={{ top: `${scanProg}%` }} />
-              )}
-              <p className="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] text-white text-center py-0.5">{item.label}</p>
+        <div className="flex items-center gap-3">
+          <div className="flex gap-2">
+            <div className="rounded-lg overflow-hidden border-2 border-teal-400/40 relative w-24 flex-shrink-0">
+              <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face&facepad=3" alt="" className="w-full object-contain" loading="lazy" />
+              <p className="absolute bottom-0 left-0 right-0 bg-black/70 text-[9px] text-white text-center py-0.5 font-medium">Image A</p>
+            </div>
+            <div className="rounded-lg overflow-hidden border-2 border-red-400/40 relative w-24 flex-shrink-0">
+              <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face&facepad=3" alt="" className="w-full object-contain" loading="lazy" />
+              <p className="absolute bottom-0 left-0 right-0 bg-black/70 text-[9px] text-white text-center py-0.5 font-medium">Image B</p>
             </div>
           </div>
-          <div className="text-center w-24">
-            {frame < 3 ? (
-              <div className="flex flex-col items-center gap-1">
-                <svg className="w-6 h-6 text-teal-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="11" cy="11" r="8" strokeWidth="2"/><line x1="21" y1="21" x2="16.65" y2="16.65" strokeWidth="2"/></svg>
-                <p className="text-[10px] text-teal-400">Scanning...</p>
-              </div>
-            ) : (
-              <div className={`text-xs font-black px-3 py-1.5 rounded-full ${item.isAI ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`}>
-                {item.isAI ? 'AI GENERATED' : 'AUTHENTIC'}
-              </div>
-            )}
+          <div className="text-center flex flex-col items-center gap-1.5 flex-shrink-0">
+            <div className="text-[10px] font-black px-2.5 py-1 rounded-full bg-teal-500/20 text-teal-400 border border-teal-500/30">
+              REAL or AI?
+            </div>
+            <p className="text-[10px] text-slate-400">Vote, then reveal</p>
           </div>
-        </div>
-        <div className="flex gap-1">
-          {[0,1,2,3].map(i => (
-            <div key={i} className={`flex-1 h-1 rounded-full transition-all ${i <= idx ? 'bg-teal-400' : 'bg-slate-700'}`} />
-          ))}
         </div>
       </div>
     );
   }
 
   if (type === 'memeMachine') {
-    const stages = ['Writing prompt...', 'Choosing style...', 'Generating image...', 'Image ready!', 'Going viral!'];
-    const stageIcons = ['pencil', 'palette', 'bolt', 'image', 'chart'];
     return (
       <div className="bg-slate-900/80 rounded-xl p-4 border border-slate-700">
-        <div className="flex gap-3 items-center mb-3">
-          <div className={`w-20 h-20 rounded-xl overflow-hidden border-2 transition-all relative ${frame >= 3 ? 'border-amber-400' : 'border-slate-600'}`}>
-            {frame < 3 ? (
-              <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-600 flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-dashed border-slate-500 rounded-lg animate-pulse" />
-              </div>
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 relative">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.893 13.393l-1.135-1.135a2.252 2.252 0 01-.421-.585l-1.08-2.16a.414.414 0 00-.663-.107.827.827 0 01-.812.21l-1.273-.363a.89.89 0 00-.738 1.595l.587.39c.59.395.674 1.23.172 1.732l-.2.2c-.212.212-.33.498-.33.796v.41c0 .409-.11.809-.32 1.158l-1.315 2.191a2.11 2.11 0 01-1.81 1.025 1.055 1.055 0 01-1.055-1.055v-1.172c0-.92-.56-1.747-1.414-2.089l-.655-.261a2.25 2.25 0 01-1.383-2.46l.007-.042a2.25 2.25 0 01.29-.787l.09-.15a2.25 2.25 0 012.37-1.048l1.178.236a1.125 1.125 0 001.302-.795l.208-.73a1.125 1.125 0 00-.578-1.315l-.665-.332-.091.091a2.25 2.25 0 01-1.591.659h-.18c-.249 0-.487.1-.662.274a.931.931 0 01-1.458-1.137l1.411-2.353a2.25 2.25 0 00.286-.779M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                </div>
-              </div>
-            )}
+        <div className="flex gap-4 items-center">
+          <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-amber-400/50 bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 flex items-center justify-center">
+            <svg className="w-10 h-10 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" /></svg>
           </div>
           <div className="flex-1">
-            <p className="text-sm font-bold text-white mb-1">{stages[frame]}</p>
-            <div className="bg-slate-800 rounded-full h-2 overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-700" style={{ width: `${(frame + 1) * 20}%` }} />
+            <p className="text-sm font-bold text-white mb-1">Write a prompt. AI creates the image.</p>
+            <p className="text-xs text-slate-400 mb-2">Learn to craft effective AI image prompts for advocacy memes</p>
+            <div className="flex gap-2">
+              {['Prompt', 'Generate', 'Critique', 'Go Viral'].map((step, i) => (
+                <span key={i} className="bg-amber-500/15 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/20">{step}</span>
+              ))}
             </div>
-            {frame >= 4 && (
-              <div className="flex gap-2 mt-2">
-                {[14, 8, 23, 5].map((n, i) => (
-                  <span key={i} className="bg-slate-700/50 rounded px-1.5 py-0.5 text-[10px] text-slate-300 animate-bounce" style={{ animationDelay: `${i * 150}ms` }}>
-                    {['fire', 'love', 'wow', 'viral'][i]} {n}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </div>
-        {frame >= 3 && (
-          <div className="bg-black/40 rounded-lg px-3 py-1.5">
-            <p className="text-white font-black text-xs text-center tracking-wide" style={{ fontFamily: 'Impact, sans-serif', textShadow: '1px 1px 2px black' }}>SAVE THE PLANET — ACT NOW</p>
-          </div>
-        )}
       </div>
     );
   }
 
   if (type === 'vibeCode') {
-    const lines = [
-      { text: '> "Build a mood tracker for students"', color: 'text-slate-400' },
-      { text: 'BYTE: Enhancing your spec...', color: 'text-cyan-400' },
-      { text: 'Generating app code...', color: 'text-yellow-400' },
-      { text: 'App built! Preview ready.', color: 'text-green-400' },
-      { text: 'Deployed to the web!', color: 'text-emerald-400' },
-    ];
-    const icons = ['>', '~', '*', '+', '^'];
     return (
       <div className="bg-slate-950 rounded-xl border border-slate-700 overflow-hidden font-mono">
         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 border-b border-slate-700">
@@ -436,38 +379,33 @@ const DetailPreview = ({ type, color }) => {
           <span className="text-[10px] text-slate-500 ml-2">vibe-code.js</span>
         </div>
         <div className="p-3 space-y-1.5">
-          {lines.slice(0, frame + 1).map((line, i) => (
-            <p key={i} className={`text-xs ${line.color} ${i === frame ? 'animate-pulse' : ''}`}>
-              <span className="text-slate-600 mr-1">{icons[i]}</span>{line.text}
-            </p>
-          ))}
-          {frame < 4 && <span className="inline-block w-2 h-3.5 bg-white/70 animate-pulse" />}
+          <p className="text-xs text-slate-400"><span className="text-slate-600 mr-1">&gt;</span>"Build a mood tracker for students"</p>
+          <p className="text-xs text-cyan-400"><span className="text-slate-600 mr-1">~</span>BYTE: Enhancing your spec...</p>
+          <p className="text-xs text-yellow-400"><span className="text-slate-600 mr-1">*</span>Generating app code...</p>
+          <p className="text-xs text-green-400"><span className="text-slate-600 mr-1">+</span>App built! Preview ready.</p>
+          <p className="text-xs text-emerald-400"><span className="text-slate-600 mr-1">^</span>Deployed to the web!</p>
         </div>
       </div>
     );
   }
 
   if (type === 'modelComparison') {
-    const models = ['Model A', 'Model B', 'Model C'];
-    const reveals = ['GPT-5', 'Gemini 3', 'Claude 4.5'];
-    const codeSnippets = [
-      'function app() {\n  return <Card />;\n}',
-      'const App = () => (\n  <Layout />\n)',
-      'export default\n  () => <Main />'
+    const models = [
+      { blind: 'Model A', real: 'GPT-5', snippet: 'function app() {\n  return <Card />;\n}' },
+      { blind: 'Model B', real: 'Gemini 3', snippet: 'const App = () => (\n  <Layout />\n)' },
+      { blind: 'Model C', real: 'Claude 4.5', snippet: 'export default\n  () => <Main />' },
     ];
     return (
       <div className="bg-slate-900/80 rounded-xl p-4 border border-slate-700">
         <div className="grid grid-cols-3 gap-2 mb-3">
           {models.map((m, i) => (
-            <div key={i} className={`rounded-lg p-2 text-center transition-all border ${frame >= 3 ? 'border-violet-500/50 bg-violet-500/10' : i === frame % 3 ? 'border-slate-500 bg-slate-700 scale-105' : 'border-slate-700 bg-slate-800/50'}`}>
-              <p className="text-[10px] font-bold text-violet-300 mb-1">{frame >= 3 ? reveals[i] : m}</p>
-              <pre className="text-[7px] text-slate-400 font-mono leading-tight text-left h-8 overflow-hidden">{codeSnippets[i]}</pre>
+            <div key={i} className="rounded-lg p-2 text-center border border-violet-500/30 bg-violet-500/5">
+              <p className="text-[10px] font-bold text-violet-300 mb-1">{m.blind}</p>
+              <pre className="text-[7px] text-slate-400 font-mono leading-tight text-left h-8 overflow-hidden">{m.snippet}</pre>
             </div>
           ))}
         </div>
-        <p className="text-center text-xs text-slate-400">
-          {frame < 3 ? 'Vote for the best output...' : 'Revealed! Different models, different styles.'}
-        </p>
+        <p className="text-center text-xs text-slate-400">Same prompt, different models. Vote blind, then reveal which AI made which.</p>
       </div>
     );
   }
@@ -476,52 +414,45 @@ const DetailPreview = ({ type, color }) => {
     return (
       <div className="bg-slate-900/80 rounded-xl p-4 border border-slate-700">
         <div className="flex items-center gap-3">
-          <div className={`flex-1 rounded-lg overflow-hidden border transition-all ${frame < 2 ? 'border-slate-600' : 'border-slate-700'}`}>
+          <div className="flex-1 rounded-lg overflow-hidden border border-slate-600">
             <div className="bg-gradient-to-br from-blue-900 to-indigo-900 h-12" />
             <div className="bg-slate-800 px-2 py-1">
-              <p className="text-[9px] text-slate-400">Original</p>
-              <p className="text-[10px] text-slate-300 font-bold">Task App</p>
+              <p className="text-[10px] text-slate-400">Original</p>
+              <p className="text-[11px] text-slate-300 font-bold">Task App</p>
             </div>
           </div>
-          <div className={`transition-all duration-300 ${frame >= 1 ? 'text-pink-400 scale-125' : 'text-slate-600'}`}>
+          <div className="text-pink-400">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
           </div>
-          <div className={`flex-1 rounded-lg overflow-hidden border transition-all ${frame >= 2 ? 'border-pink-500/50 scale-105' : 'border-slate-700'}`}>
-            <div className={`h-12 transition-all ${frame >= 2 ? 'bg-gradient-to-br from-purple-900 to-pink-900' : 'bg-slate-800'}`} />
+          <div className="flex-1 rounded-lg overflow-hidden border border-pink-500/50">
+            <div className="bg-gradient-to-br from-purple-900 to-pink-900 h-12" />
             <div className="bg-slate-800 px-2 py-1">
-              <p className="text-[9px] text-pink-400">{frame >= 2 ? 'Your Remix' : '...'}</p>
-              <p className="text-[10px] text-slate-300 font-bold">{frame >= 3 ? 'Task Pro' : '—'}</p>
+              <p className="text-[10px] text-pink-400">Your Remix</p>
+              <p className="text-[11px] text-slate-300 font-bold">Task Pro</p>
             </div>
           </div>
         </div>
-        {frame >= 4 && <p className="text-center text-xs text-pink-400 mt-2 font-bold">Best Remix Award!</p>}
       </div>
     );
   }
 
   if (type === 'tournament') {
-    const games = [
-      { icon: <GameIcon type="spotTheFake" size={20} />, n: 'Detect' },
-      { icon: <GameIcon type="memeMachine" size={20} />, n: 'Create' },
-      { icon: <GameIcon type="vibeCode" size={20} />, n: 'Build' },
-    ];
     return (
       <div className="bg-slate-900/80 rounded-xl p-4 border border-slate-700">
-        <div className="flex gap-2 mb-3">
-          {games.map((g, i) => (
-            <div key={i} className={`flex-1 rounded-lg p-2 text-center transition-all border ${i < frame && frame <= 3 ? 'border-emerald-500/50 bg-emerald-500/10' : i === frame && frame <= 2 ? 'border-amber-400 bg-amber-500/10 scale-105' : 'border-slate-700 bg-slate-800/30'}`}>
+        <div className="flex gap-2">
+          {[
+            { icon: <GameIcon type="spotTheFake" size={20} />, n: 'Detect', done: true },
+            { icon: <GameIcon type="memeMachine" size={20} />, n: 'Create', done: true },
+            { icon: <GameIcon type="vibeCode" size={20} />, n: 'Build', done: false },
+          ].map((g, i) => (
+            <div key={i} className={`flex-1 rounded-lg p-2 text-center border ${g.done ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-amber-400 bg-amber-500/10'}`}>
               <div className="flex justify-center mb-1">{g.icon}</div>
-              <p className="text-[9px] text-slate-400">{g.n}</p>
-              {i < frame && frame <= 3 && <p className="text-[9px] text-emerald-400 font-bold">Done</p>}
+              <p className="text-[10px] text-slate-300 font-medium">{g.n}</p>
+              {g.done && <p className="text-[9px] text-emerald-400 font-bold">Done</p>}
             </div>
           ))}
         </div>
-        {frame >= 3 && (
-          <div className="text-center bg-amber-500/10 rounded-lg p-2 border border-amber-500/30">
-            <GameIcon type="tournament" size={20} />
-            <p className="text-xs text-amber-400 font-bold mt-1">Champion crowned!</p>
-          </div>
-        )}
+        <p className="text-center text-xs text-slate-400 mt-3">Play all three core games. Top scorer wins the Human Award.</p>
       </div>
     );
   }
@@ -536,14 +467,15 @@ const DetailPreview = ({ type, color }) => {
 const DetailPanel = ({ game, onPlay }) => (
   <div className="bg-slate-800/90 rounded-2xl border-2 overflow-hidden" style={{ borderColor: game.color + '40' }}>
     {/* Header */}
-    <div className="px-5 py-4 flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${game.color}12, transparent)` }}>
+    <div className="px-6 py-5 flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${game.color}15, transparent)` }}>
       <div className="flex items-center gap-3">
-        <GameIcon type={game.id} size={40} />
+        <GameIcon type={game.id} size={44} />
         <div>
-          <h2 className="text-xl font-black text-white">{game.name}</h2>
-          <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
+          <h2 className="text-2xl font-black text-white">{game.name}</h2>
+          <p className="text-sm text-slate-300 mt-0.5">{game.tagline}</p>
+          <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
             <span>⏱ {game.duration}</span>
-            <span>👥 {game.players}</span>
+            <span>👥 {game.players} players</span>
             {game.isBonus && <span className="text-purple-400 font-bold">Bonus Round</span>}
             {game.isTournament && <span className="text-amber-400 font-bold">All Games Combined</span>}
           </div>
@@ -551,45 +483,45 @@ const DetailPanel = ({ game, onPlay }) => (
       </div>
       <button
         onClick={() => onPlay(game.id)}
-        className="px-5 py-2 rounded-xl font-bold text-sm text-white transition-all hover:scale-105 hover:brightness-110 shadow-lg"
+        className="px-6 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:scale-105 hover:brightness-110 shadow-lg"
         style={{ backgroundColor: game.color }}
       >
         Play Now →
       </button>
     </div>
 
-    {/* Animated Preview */}
-    <div className="px-5 pt-4">
+    {/* Static Preview */}
+    <div className="px-6 pt-4">
       <DetailPreview type={game.id} color={game.color} />
     </div>
 
     {/* Side by side: How to Play + Learning Objectives */}
     <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-700/50">
       {/* How to Play */}
-      <div className="p-5">
-        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">How to Play</h3>
-        <div className="space-y-2">
+      <div className="p-6">
+        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">How to Play</h3>
+        <div className="space-y-2.5">
           {game.highlights.map((h, i) => (
-            <div key={i} className="flex items-start gap-2.5 bg-slate-700/20 rounded-lg px-3 py-2">
-              <span className="text-xs font-bold mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: game.color + '25', color: game.color }}>
+            <div key={i} className="flex items-start gap-3 bg-slate-700/20 rounded-lg px-3 py-2.5">
+              <span className="text-xs font-bold mt-0.5 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: game.color + '25', color: game.color }}>
                 {i + 1}
               </span>
-              <span className="text-sm text-slate-300">{h}</span>
+              <span className="text-sm text-slate-200 leading-relaxed">{h}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Learning Objectives */}
-      <div className="p-5">
-        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">What You'll Learn</h3>
-        <div className="space-y-2">
+      <div className="p-6">
+        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">What You'll Learn</h3>
+        <div className="space-y-3">
           {game.skills.map((skill, i) => (
             <div key={i} className="flex items-start gap-2.5">
-              <span className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: game.color }} />
+              <span className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: game.color }} />
               <div>
                 <span className="text-sm font-bold text-white">{skill.name}</span>
-                <p className="text-xs text-slate-400">{skill.desc}</p>
+                <p className="text-[13px] text-slate-300 leading-relaxed">{skill.desc}</p>
               </div>
             </div>
           ))}

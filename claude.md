@@ -235,7 +235,17 @@ gameRooms/
 
 ---
 
-## Recent Changes (v13)
+## Recent Changes (v14)
+
+1. **Comprehensive Homepage Redesign** - New "Why AI Literacy Matters Now" section emphasizing real-world civic outputs (AI-generated advocacy memes, deployable web apps). New "What Players Learn" section with 8 learning outcomes (prompt engineering, AI-assisted development, civic advocacy, model comparison, truth vs deceit, knowing when not to use AI, accessibility, collaboration). "At a Glance" dashboard grid replacing FAQ section with SVG icons.
+2. **"More About ARTIFICIAL" Page** - Custom-designed page with John Dewey quote hero, varied two-column philosophy layout with full-width callouts, 2x2 technology grid, dark gradient credits section with license/GitHub/built-with cards. Replaced generic InfoPage for richer visual design.
+3. **Expanded FAQs Page** - 16 Q&As organized into 4 categories: Getting Started, About the Games, Technical & API, Ownership & Community. Moved from homepage accordion to dedicated info page.
+4. **GameShowcase Detail Panel Improvements** - Removed animation from large game detail previews (animation kept only in small thumbnail cards). Increased font sizes and contrast for better legibility. Added game taglines to headers.
+5. **Spot the Fake Preview** - Uncropped square portrait images with `object-contain` for proper face display.
+6. **Info Page Scroll Fix** - All info pages now scroll to top on navigation via `useEffect`.
+7. **Updated Navigation** - Header nav links to About and FAQs pages. Footer links updated with About, FAQs, Educators, Facilitators, Prompt Engineering.
+
+## Previous Changes (v13)
 
 1. **Error Handling Infrastructure** - `withRetry()` wrapper with exponential backoff for all AI calls. `formatUserError()` maps raw API errors to friendly messages ("AI is busy, trying again..."). `AIErrorBanner` component for consistent error display with retry/dismiss.
 2. **Sound Effects System** - Web Audio API-based sounds (no npm deps): `playDing()`, `playWhoosh()`, `playCelebration()`, `playTick()`. Haptic feedback on mobile. `SoundToggle` mute button in header. New file: `src/sounds.js`
@@ -355,6 +365,10 @@ User-configured keys are stored in localStorage:
 - [ ] Offline mode / graceful degradation
 - [ ] More accessibility challenge content
 - [ ] Add Accessibility Challenge to GameShowcase.js grid
+- [x] Comprehensive homepage with learning philosophy and civic outputs (v14)
+- [x] "More About ARTIFICIAL" page with Philosophy, Technology, Credits (v14)
+- [x] Expanded FAQs page (v14)
+- [x] Game detail panel legibility improvements (v14)
 
 ---
 
@@ -369,4 +383,4 @@ When starting a new session:
 
 ---
 
-*Last updated: March 28, 2026 (v13)*
+*Last updated: March 30, 2026 (v14)*
